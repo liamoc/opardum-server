@@ -1,0 +1,6 @@
+\documentclass{article}
+\usepackage{graphicx}
+\long\def\ignore#1{}
+\author{Liam O'Connor-Davis}
+\usepackage[left=3cm,top=2.5cm,right=3cm,bottom=3cm,nohead]{geometry}
+%include lhs2TeX.fmt

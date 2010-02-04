@@ -7,8 +7,9 @@
 module Haskellpad.Server where
 
 import Haskellpad.OperationalTransforms
+import Haskellpad.ConcurrencyControl
 import Haskellpad.Websockets
-
+import Haskellpad.Transport
 import Network 
 import System.IO
 import Control.Concurrent (forkIO)
@@ -18,10 +19,21 @@ import Control.Monad
 import Control.Monad.State
 import qualified Data.Map as M
 
-data OperatorMessage = Entry Handle
-                     | Exit Handle
-                     | Terminate 
+-- Naming Convention
+-- shouter  - thread named "shouter"
+-- shouter' - channel that heads to a shouter's inbox.
+-- shouter' - root broadcasting channel to all shouters.
+
+
+data OperatorMessage = Entry Client
+                     | Exit Client
+                     | TerminateOperator 
                      deriving (Show, Eq)
+
+data SnapshotterMessage = NewOp Op
+                        | SendSnapshot Client 
+                        | TerminateSnapshotter
+                        deriving (Show, Eq)
 
 (~>) = flip writeChan
 
@@ -35,72 +47,75 @@ debug = putStrLn
 -- Per Socket Threads -- 
 ------------------------
 
-broadcaster to ops = do msg <- readChan to 
-                        case msg of
-                          Just v -> do case (decode v) :: Result Packet of
-                                          Error e   -> debug $ "malformed packet: " ++ e ++ " (message was " ++ v ++ ")"
-                                          Ok packet -> Just packet ~> ops
-                                       continue
-                          Nothing -> debug "Broadcaster terminated."
-                   where continue = broadcaster to ops
+packetsmasher inbox snapshotter' = do 
+                             msg <- readChan inbox 
+                             case msg of
+                                Just v -> do case (decode v) :: Result Op of
+                                                Error e   -> debug $ "malformed packet: " ++ e ++ " (message was " ++ v ++ ")"
+                                                Ok op -> NewOp op ~> snapshotter'
+                                             continue
+                                Nothing -> debug "packetsmasher terminated."
+                   where continue = packetsmasher inbox snapshotter'
 
-listener h to from = do v <- readFrame h "" 
-                        case v of
-                          Right str  -> handle str >> continue    
-                          Left str   -> handle str >> terminate
-                   where terminate  = do Nothing ~> to
-                                         Nothing ~> from
+listener h packetsmasher' shouter' = do 
+                              v <- readFrame h
+                              case v of
+                                Right str  -> handle str >> continue    
+                                Left str   -> handle str >> terminate
+                   where terminate  = do Nothing ~> packetsmasher'
+                                         Nothing ~> shouter'
                                          debug $ "Listener on " ++ show h ++ " terminated."
-                         continue   = listener h to from
-                         handle str = when (not $ boring str) $ Just str ~> to
+                         continue   = listener h packetsmasher' shouter'
+                         handle str = when (not $ boring str) $ Just str ~> packetsmasher'
                          boring v   = any ($v) [all (==' '), ((/='[') . head)]
 
-shouter h from = do v <- readChan from 
-                    case v of 
-                      Nothing  -> terminate
-                      Just msg -> do v <- sendFrame h msg
-                                     if v then continue else terminate
+shouter h inbox = do v <- readChan inbox
+                     case v of 
+                       Nothing  -> terminate
+                       Just msg -> do v <- sendFrame h msg
+                                      if v then continue else terminate
                where terminate = debug $ "Shouter on " ++ show h ++ " terminated."
-                     continue  = shouter h from
+                     continue  = shouter h inbox
 
 --------------------------
 -- Per Document Threads --
 --------------------------
+snapshotter inbox shouter' document snapshot = do
+                        instruction <- readChan inbox
+                        case instruction of
+                             TerminateSnapshotter -> terminate
+                             NewOp op -> do let op_ts = drop (v) (reverse document)
+                                                op' = transform op op_ts
+                                                v = undefined --TODO
+                                            shouter' <~ (Just $ encode op')
+                                            continue (op:document) $ op <+ snapshot
+                             SendSnapshot h -> send snapshot h
+                      where
+                        transform op (s:ss) = transform (fst $ t (op, s)) ss
+                        transform op []     = op 
+                        send sn h = do sendFrame h $ encode sn; return ()
+                        continue  = snapshotter inbox shouter'
+                        terminate = debug $ "Snapshotter terminated" 
 
-applicant ops from document version = do op_s <- readChan ops
-                                         case op_s of
-                                            Nothing -> terminate
-                                            Just (v, op) -> do
-                                               let op_ts = drop (v) (reverse document)
-                                                   op'   = transform op op_ts
-                                               debug $ "Document(" ++ show version ++ "): " ++ show document
-                                               debug $ "Document*: " ++ (show $ normalize $ collapse document)
-                                               from <~ (Just $ encode (version, op'))
-                                               applicant ops from (op':document) $ version + 1
-                                   where 
-                                     transform op (s:ss) = transform (fst $ t (op, s)) ss
-                                     transform op []     = op 
-                                     terminate = debug $ "Applicant terminated"
-                                     collapse list = foldr (<+) [] list
 
-operator title inbox = do from <- newChan :: IO (Chan (Maybe String))
-                          ops  <- newChan :: IO (Chan (Maybe Packet))                 
-                          forkIO (applicant ops from [] (0::Int))
-                          continue ops from
+operator title inbox = do shouter'   <- newChan :: IO (Chan (Maybe String))
+                          snapshotter' <- newChan :: IO (Chan SnapshotterMessage)                 
+                          forkIO (snapshotter snapshotter' shouter' [] [])
+                          continue snapshotter' shouter'
                     where 
-                      continue ops from = do 
+                      continue snapshotter' shouter' = do 
                             msg <- readChan inbox
                             case msg of 
-                               Entry h   -> do socketThread h ops =<< (dupChan from); continue ops from
-                               Exit  h   -> continue ops from
-                               Terminate -> terminate
-                      socketThread h ops from = do 
+                               Entry h   -> do socketThread h snapshotter' =<< (dupChan shouter'); continue snapshotter' shouter'
+                               Exit  h   -> continue snapshotter' shouter'
+                               TerminateOperator -> terminate
+                      socketThread h snapshotter' shouter' = do 
                             debug $ "Starting new socket set on " ++ show h
-                            to <- newChan :: IO (Chan (Maybe String))
-                            forkIO $ broadcaster to ops
-                            forkIO $ listener h to from
+                            packetsmasher' <- newChan :: IO (Chan (Maybe String))
+                            forkIO $ packetsmasher packetsmasher' snapshotter'
+                            forkIO $ listener h packetsmasher' shouter'
                             sendFrame h "ALL CLEAR"
-                            forkIO $ shouter h from
+                            forkIO $ shouter h shouter'
                       terminate = debug $ "operator for " ++ title ++ " terminated." 
                             
 
@@ -112,16 +127,16 @@ accepter location port = do socket <- listenOn (PortNumber port)
                             continue M.empty socket
                             sClose socket    
                      where continue m socket = do
-                          h <- acceptWeb socket location port
-                          doc' <- readFrame h ""
-                          case doc' of
-                             Left _    -> sendFrame h "REJECTED" >> continue m socket
-                             Right doc -> case M.lookup doc m of
-                                             Just chan -> Entry h ~> chan >> continue m socket
-                                             Nothing   -> do chan <- newChan :: IO (Chan OperatorMessage)
-                                                             forkIO $ operator doc chan
-                                                             Entry h ~> chan
-                                                             continue (M.insert doc chan m) socket 
+                              h <- acceptWeb socket
+                              doc' <- readFrame h
+                              case doc' of
+                                 Left _    -> sendFrame h "REJECTED" >> continue m socket
+                                 Right doc -> case M.lookup doc m of
+                                                 Just chan -> Entry h ~> chan >> continue m socket
+                                                 Nothing   -> do chan <- newChan :: IO (Chan OperatorMessage)
+                                                                 forkIO $ operator doc chan
+                                                                 Entry h ~> chan
+                                                                 continue (M.insert doc chan m) socket 
 
 server location port = withSocketsDo $ do
          debug $ "Starting Haskellpad server on port " ++ show port ++ ".."
