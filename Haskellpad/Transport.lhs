@@ -13,7 +13,7 @@
 
 This module defines the format in which data is transferred between client and server.
 
-Currently the marshalling technique used is simple JSON (Javascript Object Notatation), because it
+Currently the marshalling technique used is simple JSON (JavaScript Object Notatation), because it
 can be intepreted on the client-side just by calling the JavaScript function @eval()@. 
 
 This is an inefficient transport mechanism, however, and future implementations may revise it, 
@@ -23,6 +23,7 @@ particularly if the client can be rewritten in Haskell or a Haskell-like languag
 
 > module Haskellpad.Transport where
 > import Haskellpad.OperationalTransforms
+> import Haskellpad.Messages -- Should be |ConcurrencyControl|
 > import Text.JSON
 
 Because the JSON module defines numerous serializations for common types, we simply need to define
@@ -51,5 +52,16 @@ Finally, we have a serialization operation, which encodes an operation component
 >         where show' (Insert str) = "Insert " ++ str
 >               show' (Delete str) = "Delete " ++ str
 >               show' v = show v
+
+Then, we expose serialize and deserialize functions to abstract the JSON from the rest of 
+Haskellpad, so that it can be easily changed.
+
+> serialize :: Packet -> String
+> serialize = encode
+
+> deserialize :: String -> Maybe Packet
+> deserialize v = case decode v of
+>                   Ok v'   -> Just v'
+>                   Error _ -> Nothing
 
 \end{document}

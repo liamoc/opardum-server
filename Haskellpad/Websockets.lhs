@@ -23,9 +23,10 @@ The (draft) Websockets Protocol used in this module is defined here:
 > module Haskellpad.Websockets ( Client ()
 >                              , acceptWeb
 >                              , sendFrame
->                              , readFrame ) where
+>                              , readFrame
+>                              , closeClient ) where
 
-We will simply make use of the standard Haskell Network library to expose raw TCP sockets.
+We will simply make use of the standard Haskell @Network@ library to expose raw TCP sockets.
 
 > import System.IO
 > import System.IO.Error
@@ -34,29 +35,35 @@ We will simply make use of the standard Haskell Network library to expose raw TC
 
 \section{Abstract Data Type}
 
-Internally, the Client data type maps directly to a connection handle and is interacted using
-the standard Haskell IO functions.
+Internally, the |Client| data type maps directly to a connection handle and is interacted using
+the standard Haskell |IO| functions.
+
+We provide an |Ord| instance so that it can be used in a map.
 
 > data Client = Client Handle deriving (Show, Eq)
 
-The (exposed) constructor of the Client type is |acceptWeb|, that waits for a connection to
+> instance Ord Client where
+>    compare (Client a) (Client b) = show a `compare` show b
+
+The (exposed) constructor of the |Client| type is |acceptWeb|, that waits for a connection to
 the specified socket and initializes the handle. This thread-blocks until a client connects.
 
 It also makes a server handshake to initiate Web Sockets communication.
 
-> acceptWeb :: Socket -> IO Client 
-> acceptWeb socket = do (h,location,port) <- accept socket
->                       hPutStr h (serverHandshake location port)
->                       hSetBuffering h NoBuffering
->                       return $ Client h
->  where serverHandshake location port = concat $ 
->         [ "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
->         , "Upgrade: WebSocket\r\n"
->         , "Connection: Upgrade\r\n"
->         , "WebSocket-Origin: http://" ++ location ++ "\r\n"
->         , "WebSocket-Location: ws://" ++ location ++ ":" ++ show port ++ "/\r\n"
->         , "WebSocket-Protocol: sample\r\n\r\n\0"
->         ]
+> acceptWeb :: Socket -> String -> Int -> IO Client 
+> acceptWeb socket location port = do 
+>   (h,_,_) <- accept socket
+>   hPutStr h (serverHandshake location port)
+>   hSetBuffering h NoBuffering
+>   return $ Client h
+>     where serverHandshake location port = concat $ 
+>             [ "HTTP/1.1 101 Web Socket Protocol Handshake\r\n"
+>             , "Upgrade: WebSocket\r\n"
+>             , "Connection: Upgrade\r\n"
+>             , "WebSocket-Origin: http://" ++ location ++ "\r\n"
+>             , "WebSocket-Location: ws://" ++ location ++ ":" ++ show port ++ "/\r\n"
+>             , "WebSocket-Protocol: sample\r\n\r\n\0"
+>             ]
 
 \section{Message Frames}
 
@@ -97,5 +104,10 @@ This will thread-block while waiting for input.
 >                              0   -> readFrame' h "" 
 >                              255 -> return $ Right str
 >                              _   -> readFrame' h (str++[new]) 
+
+Finally, the |closeClient| function is a simple wrapper around |hClose|.
+
+> closeClient :: Client -> IO ()
+> closeClient (Client h) = hClose h
 
 \end{document}

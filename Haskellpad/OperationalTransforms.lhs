@@ -8,7 +8,6 @@
 \ignore{
 
 > {-# LANGUAGE PatternGuards #-}
-> module Haskellpad.OperationalTransforms where
 
 }
 \title{Haskellpad: Operational Transforms}
@@ -28,6 +27,10 @@ transmitted across the wire. Details of this transformation are provided in sect
 
 The Operational Transform semantics are pairwise, so each transformation is only concerned with
 unifying only one client and the server. 
+
+> module Haskellpad.OperationalTransforms where
+> 
+> import Data.List(isPrefixOf)
 
 \section{Operations}
 
@@ -51,9 +54,9 @@ The relation is defined such that for some operation $a$ and another $b$, applyi
 a document should be equivalent to applying $a$ to the document and then applying $b$ separately.
 Similarly, applying $a$|<+|$b$ should be the same as applying $b$ then $a$.
 
-This relation is used on the server for storage. Rather than store the document in the MACID store
-as a sequence of Ops (which is rather inefficient in terms of space), we compose all ops together
-into a running `snapshot' as they arrive. 
+This relation is used on the server for storage. Rather than store the document in the |Storage|
+as a sequence of |Op|s (which is rather inefficient in terms of space), we compose all |Op|s together
+into a running `snapshot' as they arrive. More information is in the @ConcurrencyControl@ module.
 
 We include in the contract for the relation the idea that an invalid operation will not compose
 with a valid operation, and hence this running snapshot is also used for error checking.
@@ -67,8 +70,8 @@ First we define one operation in terms of its reverse, to save typing.
 
 Now for the actual meat of the algorithm. The algorithm functions somewhat like the well known 
 functional list operation |zip|, except that, seeing as each component of the first op does 
-not necessarily line up with the components of the second op, components must be split into
-several components in order for the ops to zip cleanly together.
+not necessarily line up with the components of the second |Op|, components must be split into
+several components in order for the |Op|s to zip cleanly together.
 
 \begin{center}
 \includegraphics[width=105mm]{resources/zip.pdf}
@@ -113,11 +116,9 @@ characters.
 > first n (Delete str) = Delete $ take n str
 > first n (Retain num) = Retain $ n
 
-The |normalize| function is used to reconnect contiguous regions of operation components, however 
-the composition relation does not call this for performance reasons --- as the composition 
-relation is often used in a |fold|, where a single call to |normalize| could be used after all 
-compositions are completed, we do not call |normalize| here as it would result in a suboptimal $n$ 
-calls (where $n$ is the length of the folded list), most of which are redundant.
+The |normalize| function is used to reconnect contiguous regions of operation components,
+as the zip operations performed by composition and transformation can cause unnecessary
+breaks.
 
 > normalize :: Op -> Op
 > normalize ((Insert str):(Insert str'):rest) = normalize ((Insert $ str ++ str'):rest)
@@ -141,15 +142,17 @@ For the rest of this function, we will consider the relation to be applying the 
 the operation $s_2$. The operation components closest to the zip are called $o_1$ and $o_2$ and 
 the rest of the operation components in the ops are called $o_1s$ and $o_2s$ respectively.
 
+> o1 <+ o2 = normalize $ compose o1 o2
+
 Next, we define that if $o_1$ is an |Insert|, we simply emit $o_1$ through the |zip|, because $o_2$
 cannot be affected in any way by an insertion later in history.
 
-> (op1:op1s) <+ op2s | insert op1 = op1:(op1s <+ op2s)
+> compose (op1:op1s) op2s | insert op1 = op1:(op1s <+ op2s)
 
 Similarly, a |Delete| in $o_2$ is passed straight through, as the $o_1$ operations cannot be 
 affected by a deletion earlier in history.
 
-> op1s <+ (op2:op2s) | delete op2 = op2:(op1s <+ op2s)
+> compose op1s (op2:op2s) | delete op2 = op2:(op1s <+ op2s)
 
 Any combination of |Delete|s or |Retain|s in $s_1$ and |Insert|s or |Retain|s in $s_2$ does not
 result in a simple-pass through result, as these operations have some precedence (Future |Delete|s
@@ -158,30 +161,30 @@ the stream to ensure that they zip cleanly. Therefore, we compare the length of 
 and split either op depending on which one is larger. We also check that the text in |Insert| and
 |Delete| components match, to prevent invalid ops from corrupting the composition.
 
-> (op1:op1s) <+ (op2:op2s) 
->      | delete op1, retain op2 = overrideRetain
->      | retain op1, retain op2 = overrideRetain
->      | delete op1, insert op2, textOk = case compare op1Length op2Length of
->                                            EQ -> eq 
->                                            LT -> lt
->                                            GT -> gt
->      | retain op1, insert op2 = case compare op1Length op2Length of
->                                    EQ -> op2:eq
->                                    LT -> (first op1Length op2):lt
->                                    GT -> op2:gt
->      where overrideRetain = case compare op1Length op2Length of              
->                                EQ -> op1:eq
->                                LT -> op1:lt
->                                GT -> (first op2Length op1):gt
->            eq = op1s <+ op2s
->            lt = op1s <+ (sub (oplength op1) op2:op2s)
->            gt = (sub (oplength op2) op1:op1s) <+ op2s
->            op1Length = oplength op1
->            op2Length = oplength op2
->            textOk = text op1 `isPrefixOf` text op2 || 
->                     text op2 `isPrefixOf` text op1
->            text (Insert t) = t
->            text (Delete t) = t
+>  where compose (op1:op1s) (op2:op2s) 
+>         | delete op1, retain op2 = overrideRetain
+>         | retain op1, retain op2 = overrideRetain
+>         | delete op1, insert op2, textOk = case compare op1Length op2Length of
+>                                               EQ -> eq 
+>                                               LT -> lt
+>                                               GT -> gt
+>         | retain op1, insert op2 = case compare op1Length op2Length of
+>                                       EQ -> op2:eq
+>                                       LT -> (first op1Length op2):lt
+>                                       GT -> op2:gt
+>         where overrideRetain = case compare op1Length op2Length of              
+>                                   EQ -> op1:eq
+>                                   LT -> op1:lt
+>                                   GT -> (first op2Length op1):gt
+>               eq = compose op1s op2s
+>               lt = compose op1s (sub (oplength op1) op2:op2s)
+>               gt = compose (sub (oplength op2) op1:op1s) op2s
+>               op1Length = oplength op1
+>               op2Length = oplength op2
+>               textOk = text op1 `isPrefixOf` text op2 || 
+>                        text op2 `isPrefixOf` text op1
+>               text (Insert t) = t
+>               text (Delete t) = t
 
 \section{Transform Function}
 
