@@ -1,11 +1,11 @@
-% Haskellpad
+% Opardum
 % A Collaborative Code Editor 
 % Written by Liam O'Connor-Davis with assistance from the
 % rest of the Google Wave Team.
 % Released under BSD3 License
 %include lhs.include
 \begin{document}
-\title{Haskellpad: Concurrent Channels}
+\title{Opardum: Concurrent Channels}
 \maketitle
 
 \ignore{
@@ -16,15 +16,15 @@
 \section{Introduction}
 
 This utility module introduces a variety of convenience functions that are used for concurrent control 
-throughout Haskellpad.
+throughout Opardum.
 
 At the heart of it is the |ThreadState| monad, which is the state transformer |stateT| over |IO|, designed to make it
 easier to write threads with thread-local state.
 
-> module Haskellpad.ConcurrentChannels 
+> module Opardum.ConcurrentChannels 
 >   ( io
 >   , debug
->   , Haskellpad.ConcurrentChannels.newChan
+>   , Opardum.ConcurrentChannels.newChan
 >   , (~>)
 >   , grabMessage
 >   , ThreadState()

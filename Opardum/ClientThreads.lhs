@@ -1,11 +1,11 @@
-% Haskellpad
+% Opardum
 % A Collaborative Code Editor 
 % Written by Liam O'Connor-Davis with assistance from the
 % rest of the Google Wave Team.
 % Released under BSD3 License
 %include lhs.include
 \begin{document}
-\title{Haskellpad: Client Threads}
+\title{Opardum: Client Threads}
 \maketitle
 
 \section{Introduction}
@@ -15,12 +15,12 @@ the @Websockets@ module's |Client| ADT. They also perform the serialization requ
 operations over the wire. These two threads are called the |listener| and the |shouter|. One of each
 exists for each connected client.
 
-> module Haskellpad.ClientThreads where
+> module Opardum.ClientThreads where
 >
-> import Haskellpad.Messages -- Should be |ConcurrencyControl|
-> import Haskellpad.Transport
-> import Haskellpad.Websockets
-> import Haskellpad.ConcurrentChannels
+> import Opardum.ConcurrencyControl.Types
+> import Opardum.Transport
+> import Opardum.Websockets
+> import Opardum.ConcurrentChannels
 
 \section{Implementation}
 
@@ -36,11 +36,13 @@ the document manager that the client should be removed.
 > listener :: Client -> Chan (DocumentManagerMsg) -> ThreadState ()
 > listener client toDM = do
 >   read <- io $ readFrame client 
+>   debug $ show read
 >   case read of
 >     Left _    -> RemoveClient client ~> toDM 
 >     Right str -> case deserialize str of
 >                    Nothing -> RemoveClient client ~> toDM
 >                    Just p  -> do 
+>                      debug $ "Recieved " ++ show p
 >                      NewOp client p ~> toDM 
 >                      listener client toDM
 
@@ -63,6 +65,7 @@ document manager that the client should be removed.
 >   case msg of
 >     STerminate -> return ()
 >     Shout pack -> do v <- io $ sendFrame client (serialize pack) 
+>                      debug $ "shouted to " ++ show client ++ ": " ++ serialize pack
 >                      if v 
 >                       then shouter inbox client toDM
 >                       else RemoveClient client ~> toDM

@@ -1,4 +1,4 @@
-% Haskellpad                                                  
+% Opardum                                                  
 % A Collaborative Code Editor 
 % Written by Liam O'Connor-Davis with assistance from the
 % rest of the Google Wave Team.
@@ -6,7 +6,7 @@
 %include lhs.include
 \begin{document}
 
-\title{Haskellpad: Transport}
+\title{Opardum: Transport}
 \maketitle
 
 \section {Description}
@@ -21,9 +21,9 @@ particularly if the client can be rewritten in Haskell or a Haskell-like languag
 
 \section {Implementation}
 
-> module Haskellpad.Transport where
-> import Haskellpad.OperationalTransforms
-> import Haskellpad.Messages -- Should be |ConcurrencyControl|
+> module Opardum.Transport where
+> import Opardum.OperationalTransforms
+> import Opardum.ConcurrencyControl.Types
 > import Text.JSON
 
 Because the JSON module defines numerous serializations for common types, we simply need to define
@@ -47,14 +47,14 @@ will short circuit the whole action without lots of explicit boilerplate logic.
 
 Finally, we have a serialization operation, which encodes an operation component in JSON text.
 
->    showJSON = JSObject . toJSObject . zip ["type","data"] . map JSString . 
->               map toJSString . words . show' 
->         where show' (Insert str) = "Insert " ++ str
->               show' (Delete str) = "Delete " ++ str
->               show' v = show v
+>    showJSON = JSObject . toJSObject . show'
+>         where show' (Insert str) = [("type",jss "Insert"),("data", jss str)]
+>               show' (Delete str) = [("type",jss "Delete"),("data", jss str)]
+>               show' (Retain v)   = [("type",jss "Retain"),("data", jss $ show v)]
+>               jss = JSString . toJSString
 
 Then, we expose serialize and deserialize functions to abstract the JSON from the rest of 
-Haskellpad, so that it can be easily changed.
+Opardum, so that it can be easily changed.
 
 > serialize :: Packet -> String
 > serialize = encode

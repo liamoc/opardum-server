@@ -1,0 +1,51 @@
+name: opardum
+version: 0.0.1
+cabal-version: -any
+build-type: Simple
+license: BSD3
+license-file: ""
+copyright:
+maintainer:
+build-depends: CouchDB >=0.10.1, base -any, containers >=0.3.0,
+               json >=0.4.3, mtl -any, network >=2.0
+stability:
+homepage:
+package-url:
+bug-reports:
+synopsis: opardum server
+description: .
+category:
+author:
+tested-with:
+data-files:
+data-dir: ""
+extra-source-files:
+extra-tmp-files:
+ 
+executable: opardum-hs
+main-is: Main.hs
+buildable: True
+build-tools:
+cpp-options:
+cc-options:
+ld-options:
+pkgconfig-depends:
+frameworks:
+c-sources:
+extensions:
+extra-libraries:
+extra-lib-dirs:
+includes:
+install-includes:
+include-dirs:
+other-modules: Opardum.Server Opardum.ConcurrencyControl
+               Opardum.Storage Opardum.ConcurrentChannels
+               Opardum.OperationalTransforms Opardum.Websockets
+               Opardum.ClientRegistry Opardum.Transport
+               Opardum.ClientThreads Opardum.ConcurrencyControl.Types
+ghc-prof-options:
+ghc-shared-options:
+ghc-options:
+hugs-options:
+nhc98-options:
+jhc-options:

@@ -1,11 +1,11 @@
-% Haskellpad
-% A Collaborative Code Editor 
+% Opardum
+% A Collaborative Code Editor
 % Written by Liam O'Connor-Davis with assistance from the
 % rest of the Google Wave Team.
 % Released under BSD3 License
 %include lhs.include
 \begin{document}
-\title{Haskellpad: Client Registry }
+\title{Opardum: Client Registry }
 \maketitle
 
 \section{Introduction}
@@ -15,7 +15,7 @@ per-client threads, we create here an Abstract Data Type (ADT) for use in the @C
 module that manages client threads so that the broader document threads need not deal with the
 mechanics of creating, removing, and communicating to a client thread.
 
-> module Haskellpad.ClientRegistry 
+> module Opardum.ClientRegistry
 >   ( ClientRegistry ()
 >   , createRegistry
 >   , createClient
@@ -25,11 +25,11 @@ mechanics of creating, removing, and communicating to a client thread.
 >   , numClients
 >   ) where
 
-> import Haskellpad.ClientThreads
-> import Haskellpad.ConcurrentChannels
-> import Haskellpad.Websockets
-> import Haskellpad.OperationalTransforms
-> import Haskellpad.Messages -- should be |ConcurrencyControl|
+> import Opardum.ClientThreads
+> import Opardum.ConcurrentChannels
+> import Opardum.Websockets
+> import Opardum.OperationalTransforms
+> import Opardum.ConcurrencyControl.Types
 >
 > import Control.Applicative((<$>))
 > import qualified Data.Map as M
@@ -40,7 +40,7 @@ mechanics of creating, removing, and communicating to a client thread.
 
 \subsection{Data types}
 
-Seeing as the |ClientRegistry| is intended only to be used in an IO context, we will model the 
+Seeing as the |ClientRegistry| is intended only to be used in an IO context, we will model the
 registry as a newtype around an |IORef| that points to the actual data used, somewhat like the
 common C idiom.
 
@@ -48,12 +48,12 @@ common C idiom.
 
 Each client has two threads, a listener, which listens for incoming packets from the client,
 and a shouter, which broadcasts operations from the server to the client. The |ClientRegistry|
-is responsible for managing outgoing communication to these threads, and so a communication 
+is responsible for managing outgoing communication to these threads, and so a communication
 channel to the shouter is stored in the |ClientRegistryData|. No channel is made for the listener,
 seeing as the listener waits on client input and does not need server input except for when it is
 spawned. For more information about these threads, see the @ClientThreads@ module.
 
-A transmission |Packet| includes, in addition to the |Op|, the number of operations recieved from the client 
+A transmission |Packet| includes, in addition to the |Op|, the number of operations received from the client
 by the server since the server last sent ops (the $d_s$ value mentioned in the @ConcurrencyControl@
 module). This value is also managed by the |ClientRegistry| and is attached to an |Op| to form a |Packet|
 before it is transmitted.
@@ -76,14 +76,14 @@ With that in mind, we define the |ClientRegistryData| structure as a pair, conta
 
 The constructor for this ADT, |createRegistry|, is simply a wrapper around an empty map:
 
-> createRegistry :: Chan (DocumentManagerMsg) -> IO ClientRegistry 
+> createRegistry :: Chan (DocumentManagerMsg) -> IO ClientRegistry
 > createRegistry toDM = ClientRegistry <$> newIORef (M.empty, toDM)
 
 To create a client, we simply spawn the two client threads, and set the $d_s$ value to an
 obvious amount, say, 0.
 
 > createClient :: ClientRegistry -> Client -> IO ()
-> createClient (ClientRegistry reg) c = do 
+> createClient (ClientRegistry reg) c = do
 >   (cd, toDM) <- readIORef reg
 >   shouter  <- spawnShouter c toDM
 >   spawnListener c toDM
@@ -98,9 +98,9 @@ and then removes the |ClientData| from the registry.
 >   let (ClientData shouter _) = cd M.! c
 >   closeClient c
 >   STerminate ~> shouter
->   writeIORef reg (M.delete c cd, toDM) 
+>   writeIORef reg (M.delete c cd, toDM)
 
-The |sendSnapshot| function sends a single op (the composed document snapshot) to the client. 
+The |sendSnapshot| function sends a single op (the composed document snapshot) to the client.
 
 > sendSnapshot :: ClientRegistry -> Op -> Client -> IO ()
 > sendSnapshot (ClientRegistry reg) op c = do
@@ -109,8 +109,8 @@ The |sendSnapshot| function sends a single op (the composed document snapshot) t
 >   Shout (0,op) ~> shouter
 
 The |sendOp| function is slightly more involved. Here we are required to send operations (with
-correct $d_s$ numbers), to every client \emph{except} the one from which the operation originated. 
-We also have to increase the $d_s$ number for that client so that it can transform future 
+correct $d_s$ numbers), to every client \emph{except} the one from which the operation originated.
+We also have to increase the $d_s$ number for that client so that it can transform future
 operations we send to it correctly.
 
 > sendOp :: ClientRegistry -> Op -> Client -> IO ()

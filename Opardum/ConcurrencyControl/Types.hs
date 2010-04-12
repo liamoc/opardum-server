@@ -1,7 +1,7 @@
-module Haskellpad.Messages where
+module Opardum.ConcurrencyControl.Types where
 
-import Haskellpad.OperationalTransforms
-import Haskellpad.Websockets
+import Opardum.OperationalTransforms
+import Opardum.Websockets
 
 type Packet = (Int, Op)
 
@@ -11,6 +11,7 @@ data DocumentManagerMsg = NewClient Client
                         deriving (Show)
 
 data ClientManagerMsg = AddClient Client
+                      | AddClientToDoc Client String
                       | RemoveDocument String
                       deriving (Show)
 

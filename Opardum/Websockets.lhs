@@ -1,11 +1,11 @@
-% Haskellpad
+% Opardum
 % A Collaborative Code Editor 
 % Written by Liam O'Connor-Davis with assistance from the
 % rest of the Google Wave Team.
 % Released under BSD3 License
 %include lhs.include
 \begin{document}
-\title{Haskellpad: Web Sockets Interface}
+\title{Opardum: Web Sockets Interface}
 \maketitle
 
 \section{Introduction}
@@ -20,11 +20,11 @@ The (draft) Websockets Protocol used in this module is defined here:
 
 @http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-74@
 
-> module Haskellpad.Websockets ( Client ()
->                              , acceptWeb
->                              , sendFrame
->                              , readFrame
->                              , closeClient ) where
+> module Opardum.Websockets ( Client ()
+>                           , acceptWeb
+>                           , sendFrame
+>                           , readFrame
+>                           , closeClient ) where
 
 We will simply make use of the standard Haskell @Network@ library to expose raw TCP sockets.
 
