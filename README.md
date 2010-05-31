@@ -23,9 +23,9 @@ Opardum is made up of several packages:
 
 To compile and install Opardum with the [Haskell Platform](http://hackage.haskell.org/platform/), simply type:
 
-   cabal configure
-   cabal build
-   cabal install
+    cabal configure
+    cabal build
+    cabal install
 
 The Setup.hs script can also be used.
 
