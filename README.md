@@ -17,9 +17,9 @@ Building
 
 Opardum is made up of several packages:
 
-opardum -- the main server implementation
-opardum-mongodb -- a MongoDB storage backend 
-opardum-file (TBA) -- a flat file storage backend
+ * opardum -- the main server implementation
+ * opardum-mongodb -- a MongoDB storage backend 
+ * opardum-file (TBA) -- a flat file storage backend
 
 To compile and install Opardum with the [Haskell Platform](http://hackage.haskell.org/platform/), simply type:
 
@@ -51,19 +51,19 @@ The configuration file will be located in $XDG_CONFIG_HOME/opardum/opardum.hs. O
 
 A simple configuration file is as follows:
 
-   import Opardum.Configuration
+    import Opardum.Configuration
 
-   main = opardum defaultConfig
+    main = opardum defaultConfig
 
 By default, Opardum runs on port 9988, with the websocket protocol, and a null storage backend (document state is lost when all clients disconnect).
 
 A more useful configuration file is as follows (using the mongoDB storage backend to enable permanent storage)
 
-   import Opardum.Configuration
-   import Opardum.Storage
-   import qualified Opardum.Storage.MongoDB as M
+    import Opardum.Configuration
+    import Opardum.Storage
+    import qualified Opardum.Storage.MongoDB as M
 
-   main = opardum defaultConfig { storage = M.mongoDB M.defaults }
+    main = opardum defaultConfig { storage = M.mongoDB M.defaults }
 
 See the file Opardum/Configuration.lhs for a full description of options.
 
