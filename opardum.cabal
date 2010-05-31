@@ -1,51 +1,39 @@
 name: opardum
 version: 0.0.1
-cabal-version: -any
+cabal-version: >=1.2
 build-type: Simple
 license: BSD3
-license-file: ""
-copyright:
-maintainer:
-build-depends: CouchDB >=0.10.1, base -any, containers >=0.3.0,
-               json >=0.4.3, mtl -any, network >=2.0
-stability:
-homepage:
+license-file: LICENSE
+copyright: 2010 Liam O'Connor-Davis
+maintainer: liamoc@cse.unsw.edu.au
+stability: Experimental
+homepage: http://liamoc.net/opardum
 package-url:
 bug-reports:
-synopsis: opardum server
-description: .
-category:
-author:
-tested-with:
-data-files:
-data-dir: ""
-extra-source-files:
-extra-tmp-files:
- 
-executable: opardum-hs
-main-is: Main.hs
-buildable: True
-build-tools:
-cpp-options:
-cc-options:
-ld-options:
-pkgconfig-depends:
-frameworks:
-c-sources:
-extensions:
-extra-libraries:
-extra-lib-dirs:
-includes:
-install-includes:
-include-dirs:
-other-modules: Opardum.Server Opardum.ConcurrencyControl
-               Opardum.Storage Opardum.ConcurrentChannels
-               Opardum.OperationalTransforms Opardum.Websockets
-               Opardum.ClientRegistry Opardum.Transport
-               Opardum.ClientThreads Opardum.ConcurrencyControl.Types
-ghc-prof-options:
-ghc-shared-options:
-ghc-options:
-hugs-options:
-nhc98-options:
-jhc-options:
+synopsis: A configurable collaborative editing server.
+description: A highly configurable, operational transforms based collaborative document editing server
+category: Network
+author: Liam O'Connor-Davis
+tested-with: GHC==6.12
+
+library
+   build-depends: base >=4.0, containers >=0.3.0,
+                  json >=0.4.3, mtl -any, network >=2.0
+   exposed-modules: Opardum.Server Opardum.ConcurrencyControl
+                  Opardum.Storage Opardum.ConcurrentChannels
+                  Opardum.OperationalTransforms Opardum.Websockets
+                  Opardum.ClientRegistry Opardum.Transport
+                  Opardum.ClientThreads Opardum.ConcurrencyControl.Types 
+                  Opardum.Storage.NullStorage, Opardum.Configuration               
+
+executable opardum
+   main-is: Main.lhs
+   buildable: True
+   build-depends: base >=4.0, containers >=0.3.0, dyre >=0.8,
+                  json >=0.4.3, mtl -any, network >=2.0
+   other-modules: Opardum.Server Opardum.ConcurrencyControl
+                  Opardum.Storage Opardum.ConcurrentChannels
+                  Opardum.OperationalTransforms Opardum.Websockets
+                  Opardum.ClientRegistry Opardum.Transport
+                  Opardum.ClientThreads Opardum.ConcurrencyControl.Types 
+                  Opardum.Storage.NullStorage, Opardum.Configuration

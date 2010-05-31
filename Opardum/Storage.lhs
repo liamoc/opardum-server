@@ -7,72 +7,30 @@
 \begin{document}
 \title{Opardum: Storage}
 \maketitle
-
 \section{Introduction}
 
-This module provides an abstract type, |Storage|, which provides an interface for permanent storage
-of documents.
+Opardum is designed so that a variety of storage backends can be used, including MongoDB and flat files.
 
-The storage engine currently used is Apache's @CouchDB@, written in Erlang, and very well suited to 
-this application.
+To achieve this end, we define a typeclass, @Storage@, which encapsulates all the operations that Opardum requires - 
+simply, retrieval and storage of documents.
 
-> module Opardum.Storage ( getDocument
->                        , updateDocument
->                        , startStorage
->                        , Storage()
->                        ) where
+> module Opardum.Storage where
 
-> import Opardum.OperationalTransforms
-> import Database.CouchDB
-> import Opardum.Transport
-> import Text.JSON
-> import Control.Monad.Trans
+\section{Implementation}
 
-\section {Implementation}
+We define a typeclass |Storage| over the storage type a.
 
-The |Storage| type is, internally, a @newtype@ around a couchDB connection.
+> class Storage a where
 
-> newtype Storage = Storage CouchConn
+We define the two operations required by Opardum. |getDocument| is expected to return an empty string if the document does not exist. It takes a storage handle
+and a document name and produces the document required in string form.
 
-Therefore, the constructor simply initiates a couchDB connection and wraps it.
+>    getDocument :: a -> String -> IO String
 
-If the database does not exist, it is created.
+|updateDocument| either creates or updates a document such that it contains the specified string contents. The same document will never be written to 
+concurrently, however multiple updates to different documents may occur concurrently. Hence, concurrent access to storage is required, but not concurrent 
+access to each individual document.
 
-> startStorage = do 
->   conn <- createCouchConn "127.0.0.1" 5984 
->   return $ Storage conn
-
-The couchDB database is called @Opardum@.
-
-> database = db "Opardum"
-
-We map Opardum documents to couchDB documents, so the name of the Opardum document must
-also be a valid couchDB document. Hence, we have a fair bit of error checking in the next
-function, |getDocument|, designed to retrieve a snapshot from the database.
-
-> getDocument :: Storage -> String -> IO (Maybe Op)
-> getDocument (Storage conn) str = runCouchDBWith conn $ 
->   if isDocString str then do
->     liftIO $ putStrLn $ "getting document: " ++ show str
->     doc' <- getDocPrim database (doc str)
->     case doc' of Nothing -> return $ Just []
->                  Just (_,_,v) -> 
->                   case (readJSON $ snd $ last $ v) of
->                      (Error _)-> return Nothing 
->                      (Ok res) -> return $ Just [Insert res ]
->   else return Nothing
-> 
-
-Finally, we have |updateDociument|, which is called by the archiver every 10 seconds to 
-update the snapshot of a document.
-
-> updateDocument :: Storage -> String -> Op -> IO ()
-> updateDocument _ _ [] = return ()
-> updateDocument (Storage conn) str [Insert op] = runCouchDBWith conn $ do
->   liftIO $ putStrLn $ "updating document: " ++ show op
->   v <- getDocPrim database (doc str)
->   case v of Nothing -> newNamedDoc database (doc str) (toJSObject [("data",op)]) >> return ()
->             Just (d,r,_) -> updateDoc database (d,r) (toJSObject [("data",op)]) >> return ()
-
+>    updateDocument :: a -> String -> String -> IO ()
 
 \end{document}

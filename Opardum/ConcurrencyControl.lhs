@@ -177,9 +177,9 @@ The document manager (and the archiver) terminate if all clients disconnect.
 > documentManager inbox toCM = do
 >   (mv, doc, cr, cl, docName) <- get
 >   currentMessage <- grabMessage inbox
->   debug $ "documentManager received:" ++ show currentMessage
 >   numCs <- io $ numClients cr
 >   if numCs == 0 && not (isNewClient currentMessage)
+>    || numCs -1 == 0 && (isRemoveClient currentMessage)
 >    then do
 >      io $ tryTakeMVar mv
 >      io $ putMVar mv $ ATerminate doc
@@ -206,6 +206,8 @@ The document manager (and the archiver) terminate if all clients disconnect.
 >      documentManager inbox toCM
 >    where isNewClient (NewClient _) = True
 >          isNewClient _             = False
+>          isRemoveClient (RemoveClient _) = True
+>          isRemoveClient _                = False
 
 Spawning a document manager initializes it with some simple empty state. Seeing as the document
 manager and the archiver are fairly tightly bound, this is also used to spawn an archiver.
@@ -234,13 +236,16 @@ they may be slow given many transactions.
 > data ArchiverData = Archive Snapshot
 >                   | ATerminate Snapshot
 
-> archiver :: MVar ArchiverData -> ThreadState (Storage, String)
+> archiver :: Storage a => MVar ArchiverData -> ThreadState (a, String)
 > archiver mv = do
 >   (store, docName) <- get
 >   io $ threadDelay 10000000
+>   debug $ "committing"
 >   msg <- io $ takeMVar mv
 >   case msg of
->      Archive doc    -> do io $ updateDocument store docName doc; archiver mv
->      ATerminate doc -> io $ updateDocument store docName doc
+>      Archive [Insert doc]    -> do io $ updateDocument store docName doc; archiver mv
+>      ATerminate [Insert doc] -> io $ updateDocument store docName doc
+>      Archive []              -> do io $ updateDocument store docName ""; archiver mv
+>      ATerminate []           -> io $ updateDocument store docName ""
 
 \end{document}

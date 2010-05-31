@@ -7,11 +7,9 @@
 \begin{document}
 \title{Opardum: Server}
 \maketitle
-
 \section{Introduction}
 
-In this module are contained singleton threads that manage initial client connections, as well
-as functions that set up the TCP sockets for client communication.
+In this module are contained singleton threads that manage initial client connections.
 
 \section{Implementation}
 
@@ -19,17 +17,16 @@ as functions that set up the TCP sockets for client communication.
 >   ( clientManager
 >   , ClientManagerMsg (..)
 >   , portListener
->   , server
 >   ) where
 >
 > import Opardum.Websockets
 > import Opardum.ConcurrentChannels
 > import Opardum.ConcurrencyControl
+> import Opardum.OperationalTransforms
 > import Opardum.Storage
 >
 > import qualified Data.Map as M
 > import Control.Monad.State
-> import Network
 
 \subsection{Client Manager}
 
@@ -53,9 +50,10 @@ data ClientManagerMsg = AddClient Client
                       | RemoveDocument String
 \end{code}
 
-> clientManager :: Chan (ClientManagerMsg)
+> clientManager :: Storage a
+>               => Chan (ClientManagerMsg)
 >               -> ThreadState ( M.Map String (Chan (DocumentManagerMsg))
->                              , Storage
+>                              , a
 >                              )
 > clientManager inbox = do
 >   (documents, storage) <- get
@@ -69,15 +67,14 @@ data ClientManagerMsg = AddClient Client
 >         Just chan -> NewClient client ~> chan
 >         Nothing   -> do
 >           snapshot <- io $ getDocument storage docName
->           case snapshot of
->             Nothing -> io $ closeClient client
->             Just v -> do
->               debug $ "spawning document manager for document: " ++ docName
->               dm <- spawnDocumentManager inbox docName v storage
->               NewClient client ~> dm
->               put (M.insert docName dm documents, storage)
+>           debug $ "spawning document manager for document: " ++ docName
+>           dm <- spawnDocumentManager inbox docName (strToSnapshot snapshot) storage
+>           NewClient client ~> dm
+>           put (M.insert docName dm documents, storage)
 >   clientManager inbox
 >   where
+>     strToSnapshot []  = []
+>     strToSnapshot str = [Insert str]
 >     ask client toCM = do
 >       request <- io $ readFrame client
 >       case request of
@@ -89,26 +86,10 @@ data ClientManagerMsg = AddClient Client
 The port listener is a very dumb thread that simply listens on the specified TCP port for incoming
 connections, forwarding to the client manager.
 
-> portListener :: Socket -> Chan (ClientManagerMsg) -> String -> Int -> IO ()
 > portListener socket toCM location port = do
 >   client <- acceptWeb socket location port
 >   AddClient client ~> toCM
 >   portListener socket toCM location port
 
-\subsection{Server Bootstrap}
-
-Finally, we have an IO action which kickstarts the server threads and initialises storage.
-
-> server :: String -> Int -> IO ()
-> server location port = withSocketsDo $ do
->   debug $ "Starting Opardum server on port " ++ show port ++ ".."
->   socket <- listenOn (PortNumber $ fromIntegral port)
->   debug "Listening for connections."
->   storage <- startStorage
->   debug "Initialized Storage Connection"
->   toCM <- newChan
->   spawnThread (M.empty, storage) $ clientManager toCM
->   debug "Created Client Manager"
->   portListener socket toCM location port
 
 \end{document}
