@@ -68,3 +68,13 @@ A more useful configuration file is as follows (using the mongoDB storage backen
 See the file Opardum/Configuration.lhs for a full description of options.
 
 Running opardum with a changed config file will cause it to recompile.
+
+Web Client
+==========
+
+A simple, probably buggy testing client has been implemented as a web page with an embedded [Mozilla Bespin](https://bespin.mozillalabs.com/) editor. In order
+to use the client, download Bespin Embedded DropIn, and place it in a directory entitled "bespin" under "Client", such that Client/bespin/BespinEmbedded.js can 
+be found.
+
+Then run a web server to serve up that HTML page and navigate there with a compliant browser such as Google Chrome. Note that advanced HTML5 features are required
+for Bespin, and WebSockets are used for the transport protocol. Hence Firefox 3.5 and any version of IE will not work.
