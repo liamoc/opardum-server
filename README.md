@@ -18,8 +18,13 @@ Building
 Opardum is made up of several packages:
 
  * opardum -- the main server implementation
- * opardum-mongodb -- a MongoDB storage backend 
- * opardum-file (TBA) -- a flat file storage backend
+ * **Storage Backends** - by default, Opardum uses a null storage backend that 'forgets' a document as soon as all clients disconnect.
+   * opardum-mongodb -- a MongoDB-based permanent storage backend 
+   * opardum-file -- a flat file permanent storage backend
+   * opardum-iostorage -- a in-memory storage backend that lasts only as long as the server instance (TBA).
+   * opardum-tokyo -- a Tokyo Cabinet permanent storage backend (TBA).
+ * **Transport Protocols** - by default, Opardum uses web sockets to interface with the web client, however other transport protocols exist.
+   * opardum-simplesockets -- A normal TCP sockets based transport protocol (TBA).
 
 To compile and install Opardum with the [Haskell Platform](http://hackage.haskell.org/platform/), simply type:
 
@@ -29,7 +34,7 @@ To compile and install Opardum with the [Haskell Platform](http://hackage.haskel
 
 The Setup.hs script can also be used.
 
-To build the mongoDB package, simply run the same commands from the mongodb/ directory. 
+To build any of the sub-packages, simply run the same commands in their relevant directories.
 
 Dependencies
 ------------
@@ -40,6 +45,7 @@ Dependencies of Opardum include:
   * GHC
   * Network
   * MongoDB (for optional MongoDB backend)
+  * Tokyo Cabinet (for optional Tokyo Cabinet backend)
 
 Configuring
 ===========
