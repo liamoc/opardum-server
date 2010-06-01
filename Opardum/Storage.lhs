@@ -7,6 +7,11 @@
 \begin{document}
 \title{Opardum: Storage}
 \maketitle
+\ignore{
+
+> {-# LANGUAGE DeriveDataTypeable #-}
+
+}
 \section{Introduction}
 
 Opardum is designed so that a variety of storage backends can be used, including MongoDB and flat files.
@@ -15,6 +20,9 @@ To achieve this end, we define a typeclass, @Storage@, which encapsulates all th
 simply, retrieval and storage of documents.
 
 > module Opardum.Storage where
+
+> import Control.Exception
+> import Data.Typeable
 
 \section{Implementation}
 
@@ -32,5 +40,12 @@ concurrently, however multiple updates to different documents may occur concurre
 access to each individual document.
 
 >    updateDocument :: a -> String -> String -> IO ()
+
+We also define an IO exception for these actions to throw if they fail (however any exception will be caught):
+
+> data StorageException = InvalidConfiguration String 
+>                       | GeneralStorageFailure String 
+>                       deriving (Show,Typeable)
+> instance Exception StorageException
 
 \end{document}

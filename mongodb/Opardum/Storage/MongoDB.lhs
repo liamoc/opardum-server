@@ -13,14 +13,18 @@ This module provides a permanent storage system for Opardum using a NoSQL databa
 
 The storage system being used is MongoDB, a document database well suited to this application.
 
-> module Opardum.Storage.MongoDB  
->                         where
+> module Opardum.Storage.MongoDB ( MongoDBStorage ()
+>                                , MongoDBConfig (..)
+>                                , defaults
+>                                , mongoDB 
+>                                ) where
 
+> import Opardum.Storage
+>
 > import Database.MongoDB
 > import Database.MongoDB.BSON
 > import Data.ByteString.Lazy.UTF8
 > import Data.Maybe
-> import Opardum.Storage
 > import Network (PortID(..))
 
 \section {Implementation}
