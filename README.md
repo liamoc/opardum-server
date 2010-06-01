@@ -21,7 +21,6 @@ Opardum is made up of several packages:
  * **Storage Backends** - by default, Opardum uses a null storage backend that 'forgets' a document as soon as all clients disconnect.
    * opardum-mongodb -- a MongoDB-based permanent storage backend 
    * opardum-file -- a flat file permanent storage backend
-   * opardum-iostorage -- a in-memory storage backend that lasts only as long as the server instance (TBA).
    * opardum-tokyo -- a Tokyo Cabinet permanent storage backend (TBA).
  * **Transport Protocols** - by default, Opardum uses web sockets to interface with the web client, however other transport protocols exist.
    * opardum-simplesockets -- A normal TCP sockets based transport protocol (TBA).

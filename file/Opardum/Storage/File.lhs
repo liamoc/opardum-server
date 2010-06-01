@@ -11,7 +11,9 @@
 
 This module provides a permanent storage system for Opardum using flat files.
 
-> module Opardum.Storage.File where
+> module Opardum.Storage.File ( FileStorage()
+>                             , flatFile 
+>                             ) where
 
 > import Opardum.Storage
 >
