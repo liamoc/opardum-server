@@ -24,7 +24,8 @@ In this module are contained singleton threads that manage initial client connec
 > import Opardum.ConcurrencyControl
 > import Opardum.OperationalTransforms
 > import Opardum.Storage
->
+> 
+> import Data.Char
 > import qualified Data.Map as M
 > import Control.Monad.State
 
@@ -52,9 +53,7 @@ data ClientManagerMsg = AddClient Client
 
 > clientManager :: Storage a
 >               => Chan (ClientManagerMsg)
->               -> ThreadState ( M.Map String (Chan (DocumentManagerMsg))
->                              , a
->                              )
+>               -> ThreadState ( M.Map String (Chan (DocumentManagerMsg)), a)
 > clientManager inbox = do
 >   (documents, storage) <- get
 >   message <- grabMessage inbox
@@ -79,7 +78,10 @@ data ClientManagerMsg = AddClient Client
 >       request <- io $ readFrame client
 >       case request of
 >         Left _        -> io $ closeClient client
->         Right docName -> AddClientToDoc client docName ~> toCM
+>         Right docName -> if validName docName 
+>                            then AddClientToDoc client docName ~> toCM
+>                            else io $ closeClient client
+>     validName = all isAlphaNum
 
 \subsection{Port Listener}
 
