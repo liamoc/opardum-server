@@ -7,6 +7,11 @@
 \begin{document}
 \title{Opardum: Server}
 \maketitle
+\ignore{
+
+> {-# LANGUAGE TypeFamilies, ExistentialQuantification  #-}
+
+}
 \section{Introduction}
 
 In this module are contained singleton threads that manage initial client connections.
@@ -14,9 +19,9 @@ In this module are contained singleton threads that manage initial client connec
 \section{Implementation}
 
 > module Opardum.Server
->   ( clientManager
->   , ClientManagerMsg (..)
->   , portListener
+>   ( -- ClientManager
+>     PortListener (..)
+>   , ClientManagerState (..)
 >   ) where
 >
 > import Opardum.Websockets
@@ -28,6 +33,8 @@ In this module are contained singleton threads that manage initial client connec
 > import Data.Char
 > import qualified Data.Map as M
 > import Control.Monad.State
+> import Control.Applicative ((<$>))
+> import Network(Socket)
 
 \subsection{Client Manager}
 
@@ -49,49 +56,58 @@ document manager.
 data ClientManagerMsg = AddClient Client
                       | AddClientToDoc Client String
                       | RemoveDocument String
+data ClientManager = ClientManager
 \end{code}
 
-> clientManager :: Storage a
->               => Chan (ClientManagerMsg)
->               -> ThreadState ( M.Map String (Chan (DocumentManagerMsg)), a)
-> clientManager inbox = do
->   (documents, storage) <- get
->   message <- grabMessage inbox
->   debug $ "clientManager recieved message: " ++ show message
->   case message of
->     RemoveDocument docName -> put (M.delete docName documents, storage)
->     AddClient client -> spawnThread () (ask client inbox) >> return ()
->     AddClientToDoc client docName -> do
->       case M.lookup docName documents of
->         Just chan -> NewClient client ~> chan
->         Nothing   -> do
->           snapshot <- io $ getDocument storage docName
->           debug $ "spawning document manager for document: " ++ docName
->           dm <- spawnDocumentManager inbox docName (strToSnapshot snapshot) storage
->           NewClient client ~> dm
->           put (M.insert docName dm documents, storage)
->   clientManager inbox
->   where
->     strToSnapshot []  = []
->     strToSnapshot str = [Insert str]
->     ask client toCM = do
->       request <- io $ readFrame client
->       case request of
->         Left _        -> io $ closeClient client
->         Right docName -> if validName docName 
->                            then AddClientToDoc client docName ~> toCM
->                            else io $ closeClient client
->     validName = all isAlphaNum
+
+> data ClientManagerState = forall a. Storage a => CMS (M.Map String (Chan DocumentManagerMsg)) a
+> instance Process ClientManager where
+>   type ProcessCommands ClientManager = ClientManagerMsg
+>   type ProcessState ClientManager = ClientManagerState
+>   continue _ = do
+>      (inbox, CMS documents storage) <- get
+>      message <- grabMessage inbox
+>      debug $ "clientManager recieved message: " ++ show message
+>      case message of
+>        RemoveDocument docName -> putState $ CMS (M.delete docName documents) storage
+>        AddClient client -> forkThread $ ask client inbox
+>        AddClientToDoc client docName -> do
+>          case M.lookup docName documents of
+>            Just chan -> NewClient client ~> chan
+>            Nothing   -> do
+>              snapshot <- strToSnapshot <$> (io $ getDocument storage docName)
+>              debug $ "spawning document manager for document: " ++ docName
+>              dm <- io $ spawnDocumentManager inbox docName snapshot storage
+>              NewClient client ~> dm
+>              putState $ CMS (M.insert docName dm documents) storage
+>      continue ClientManager
+>      where
+>        strToSnapshot :: String -> Op
+>        strToSnapshot []  = []
+>        strToSnapshot str = [Insert str]
+>        ask client toCM = do
+>          request <- readFrame client
+>          case request of
+>            Left _        -> closeClient client
+>            Right docName -> if validName docName 
+>                               then AddClientToDoc client docName ~> toCM
+>                               else closeClient client
+>        validName = all isAlphaNum
 
 \subsection{Port Listener}
 
 The port listener is a very dumb thread that simply listens on the specified TCP port for incoming
 connections, forwarding to the client manager.
 
-> portListener socket toCM location port = do
->   client <- acceptWeb socket location port
->   AddClient client ~> toCM
->   portListener socket toCM location port
-
+> data PortListener = PortListener
+> instance Process PortListener where
+>   type ProcessCommands PortListener = ()
+>   type ProcessState PortListener = (Socket, Chan ClientManagerMsg, String, Int)
+>   continue _ = do
+>     (socket, toCM, location, port) <- getState
+>     client <- io $ acceptWeb socket location port
+>     AddClient client ~> toCM
+>     continue PortListener
+>   nullChannel _ = True
 
 \end{document}

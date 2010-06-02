@@ -39,6 +39,7 @@ For more information, see the Dyre hackage page at:
 > import Opardum.Storage
 > import Opardum.Storage.NullStorage
 > import Opardum.ConcurrentChannels
+> import Opardum.ConcurrencyControl
 > import Network
 > import qualified Data.Map as M
 
@@ -73,10 +74,10 @@ the |Storage| module for more information.
 >   debug "Listening for connections."
 >   storage <- startStorage
 >   debug "Initialized Storage"
->   toCM <- newChan
->   spawnThread (M.empty, storage) $ clientManager toCM
+>   toCM <- runProcess ClientManager $ CMS M.empty storage
 >   debug "Created Client Manager"
->   portListener socket toCM location port
+>   runProcess PortListener (socket, toCM, location, port)
+>   return ()
 
 \subsection{Dyre Glue}
 

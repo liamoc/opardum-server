@@ -8,6 +8,11 @@
 \title{Opardum: Client Threads}
 \maketitle
 
+\ignore{
+
+> {-# LANGUAGE TypeFamilies #-}
+
+}
 \section{Introduction}
 
 In this module we define two threads, which are responsible for communicating with clients through
@@ -33,21 +38,24 @@ as it waits on client input not application input.
 If the client input somehow breaks, for example if the client disconnects, the listener signals
 the document manager that the client should be removed.
 
-> listener :: Client -> Chan (DocumentManagerMsg) -> ThreadState ()
-> listener client toDM = do
->   read <- io $ readFrame client 
->   debug $ show read
->   case read of
->     Left _    -> RemoveClient client ~> toDM 
->     Right str -> case deserialize str of
->                    Nothing -> RemoveClient client ~> toDM
->                    Just p  -> do 
->                      debug $ "Recieved " ++ show p
->                      NewOp client p ~> toDM 
->                      listener client toDM
+> data Listener = Listener
+> instance Process Listener where
+>   type ProcessCommands Listener = ()
+>   type ProcessState Listener = (Client, Chan DocumentManagerMsg)
+>   continue _ = do
+>      (client, toDM) <- getState
+>      read <- io $ readFrame client 
+>      debug $ show read
+>      case read of
+>        Left _    -> RemoveClient client ~> toDM 
+>        Right str -> case deserialize str of
+>                       Nothing -> RemoveClient client ~> toDM
+>                       Just p  -> do 
+>                         debug $ "Recieved " ++ show p
+>                         NewOp client p ~> toDM 
+>                         continue Listener
+>   nullChannel _ = True
 
-> spawnListener c ch = spawnThread () (listener c ch)
-                    
 \subsection{Shouter}
 
 The |shouter| listens on a channel from the @ClientRegistry@, which broadcasts operations to it 
@@ -59,19 +67,20 @@ for serialization and transmission to the client.
 If the packet fails to send, for example if the client disconnects, the shouter signals the 
 document manager that the client should be removed.
 
-> shouter :: Chan (ShouterMsg) -> Client -> Chan (DocumentManagerMsg) -> ThreadState ()
-> shouter inbox client toDM = do
->   msg <- grabMessage inbox
->   case msg of
->     STerminate -> return ()
->     Shout pack -> do v <- io $ sendFrame client (serialize pack) 
->                      debug $ "shouted to " ++ show client ++ ": " ++ serialize pack
->                      if v 
->                       then shouter inbox client toDM
->                       else RemoveClient client ~> toDM
+> data Shouter = Shouter
+> instance Process Shouter where
+>   type ProcessCommands Shouter = ShouterMsg
+>   type ProcessState Shouter = (Client, Chan DocumentManagerMsg)
+>   continue _ = do
+>     (client, toDM) <- getState
+>     inbox <- getInbox
+>     msg <- grabMessage inbox
+>     case msg of
+>        STerminate -> return ()
+>        Shout pack -> do v <- io $ sendFrame client (serialize pack) 
+>                         debug $ "shouted to " ++ show client ++ ": " ++ serialize pack
+>                         if v then continue Shouter
+>                              else RemoveClient client ~> toDM
 
-> spawnShouter client toDM = do c <- newChan
->                               spawnThread () (shouter c client toDM)
->                               return c
 
 \end{document}

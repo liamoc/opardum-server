@@ -7,7 +7,11 @@
 \begin{document}
 \title{Opardum: Concurrency Control}
 \maketitle
+\ignore{
 
+> {-# LANGUAGE TypeFamilies, ExistentialQuantification  #-}
+
+}
 \section{Introduction}
 
 Opardum makes use of Operational Transforms (see the @OperationalTransforms@ module) in order to
@@ -164,61 +168,68 @@ structure), the map of |Client|s to their operation lists and the document name.
 So that the archiver thread can read the most recent |Snapshot|, we also make it available in an MVar
 which is read by the archiver every 10 seconds for storage.
 
-The document manager (and the archiver) terminate if all clients disconnect.
+The document manager (and the archiver) terminate if all clients disconnect. 
 
-> documentManager :: Chan (DocumentManagerMsg)
->                 -> Chan (ClientManagerMsg)
->                 -> ThreadState ( MVar ArchiverData
->                                , Snapshot
->                                , ClientRegistry
->                                , M.Map Client [Op]
->                                , String
->                                )
-> documentManager inbox toCM = do
->   (mv, doc, cr, cl, docName) <- get
->   currentMessage <- grabMessage inbox
->   numCs <- io $ numClients cr
->   if numCs == 0 && not (isNewClient currentMessage)
->    || numCs -1 == 0 && (isRemoveClient currentMessage)
->    then do
->      io $ tryTakeMVar mv
->      io $ putMVar mv $ ATerminate doc
->      RemoveDocument docName ~> toCM
->    else do
->      (cl',doc') <- case currentMessage of
->        NewClient c     -> do io $ do createClient cr c
->                                      sendSnapshot cr doc c
->                              return (cl, doc)
->        RemoveClient c  -> do io $ removeClient cr c
->                              return (M.delete c cl, doc)
->        NewOp c (d_c,o) -> do io $ let opList = fromMaybe [] (M.lookup c cl)
->                                       (o', opList') = incomingTransform d_c opList o
->                                    in do v <- updateSnapshot o' doc
->                                          debug $ "::" ++ show o'
->                                          case v of Nothing -> do removeClient cr c
->                                                                  return (M.delete c cl, doc)
->                                                    Just d' -> do let cl' = M.insert c opList' cl
->                                                                  sendOp cr o' c
->                                                                  tryTakeMVar mv
->                                                                  putMVar mv (Archive d')
->                                                                  return (cl',d')
->      put (mv, doc', cr, cl', docName)
->      documentManager inbox toCM
->    where isNewClient (NewClient _) = True
->          isNewClient _             = False
->          isRemoveClient (RemoveClient _) = True
->          isRemoveClient _                = False
+\begin{code}%
+ -- Actually in the Hidden Types module.
+ data DocumentManager = DocumentManager
+\end{code}
+
+> instance Process DocumentManager where
+>   type ProcessState DocumentManager = ( Chan ClientManagerMsg
+>                                       , MVar ArchiverData
+>                                       , Snapshot
+>                                       , ClientRegistry
+>                                       , M.Map Client [Op]
+>                                       , String
+>                                       )
+>   type ProcessCommands DocumentManager = DocumentManagerMsg
+>   continue _ = do
+>     (inbox, (toCM, mv, doc, cr, cl, docName)) <- get
+>     currentMessage <- grabMessage inbox
+>     numCs <- io $ numClients cr
+>     if numCs == 0 && not (isNewClient currentMessage)
+>      || numCs - 1 == 0 && (isRemoveClient currentMessage)
+>      then do
+>        updateMVar mv $ ATerminate doc
+>        RemoveDocument docName ~> toCM
+>      else do
+>        (cl',doc') <- case currentMessage of
+>          NewClient c     -> do io $ do createClient cr c
+>                                        sendSnapshot cr doc c
+>                                return (cl, doc)
+>          RemoveClient c  -> do io $ removeClient cr c
+>                                return (M.delete c cl, doc)
+>          NewOp c (d_c,o) -> do io $ let opList = fromMaybe [] (M.lookup c cl)
+>                                         (o', opList') = incomingTransform d_c opList o
+>                                      in do v <- updateSnapshot o' doc
+>                                            debug $ "::" ++ show o'
+>                                            case v of Nothing -> do removeClient cr c
+>                                                                    return (M.delete c cl, doc)
+>                                                      Just d' -> do let cl' = M.insert c opList' cl
+>                                                                    sendOp cr o' c
+>                                                                    updateMVar mv $ Archive d'
+>                                                                    return (cl',d')
+>        putState (toCM, mv, doc', cr, cl', docName)
+>        continue DocumentManager
+>      where isNewClient (NewClient _) = True
+>            isNewClient _             = False
+>            isRemoveClient (RemoveClient _) = True
+>            isRemoveClient _                = False
+>            updateMVar mv v = do
+>                    io $ tryTakeMVar mv
+>                    io $ putMVar mv v
 
 Spawning a document manager initializes it with some simple empty state. Seeing as the document
 manager and the archiver are fairly tightly bound, this is also used to spawn an archiver.
 The document manager is responsible for ensuring the archiver terminates.
 
 > spawnDocumentManager toCM docName doc storage = do
->   c <- newChan
->   mv <- io $ newEmptyMVar
->   spawnThread (storage, docName) (archiver mv)
+>   mv <- io $ (newEmptyMVar :: IO (MVar ArchiverData))
+>   toA <- runProcess Archiver (AS mv storage docName)
+>   c <- createChannel DocumentManager
 >   cr <- io $ createRegistry c
->   spawnThread (mv, doc, cr , M.empty, docName) (documentManager c toCM)
+>   runProcessWith DocumentManager c (toCM, mv, doc, cr , M.empty, docName) 
 >   return c
 
 \subsection{Archiver}
@@ -235,17 +246,21 @@ they may be slow given many transactions.
 
 > data ArchiverData = Archive Snapshot
 >                   | ATerminate Snapshot
-
-> archiver :: Storage a => MVar ArchiverData -> ThreadState (a, String)
-> archiver mv = do
->   (store, docName) <- get
->   io $ threadDelay 10000000
->   debug $ "committing"
->   msg <- io $ takeMVar mv
->   case msg of
->      Archive [Insert doc]    -> do io $ updateDocument store docName doc; archiver mv
->      ATerminate [Insert doc] -> io $ updateDocument store docName doc
->      Archive []              -> do io $ updateDocument store docName ""; archiver mv
->      ATerminate []           -> io $ updateDocument store docName ""
+> data Archiver = Archiver
+> data ArchiverState = forall a. Storage a => AS (MVar ArchiverData) a String
+> instance Process Archiver where
+>   type ProcessState Archiver = ArchiverState
+>   type ProcessCommands Archiver = ()
+>   continue _ = do
+>     AS mv store docName <- getState
+>     io $ threadDelay 10000000
+>     msg <- io $ takeMVar mv
+>     debug $ "committing"
+>     case msg of
+>        Archive [Insert doc]    -> do io $ updateDocument store docName doc; continue Archiver
+>        ATerminate [Insert doc] -> io $ updateDocument store docName doc
+>        Archive []              -> do io $ updateDocument store docName ""; continue Archiver
+>        ATerminate []           -> io $ updateDocument store docName ""
+>   nullChannel _ = True
 
 \end{document}
