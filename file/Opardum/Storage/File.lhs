@@ -28,7 +28,7 @@ The |FileStorage| type is, internally, a @newtype@ around the directory in which
 
 > newtype FileStorage = F String
 
-Our instance of the @Storage@ class provides simple flat file implementations for get and update Opardum operations.
+Our instance of the @StorageDriver@ class provides simple flat file implementations for get and update Opardum operations.
 
 > instance StorageDriver FileStorage where
 >     getDocument (F dir) n = let filename = (addTrailingPathSeparator dir) `replaceFileName` n
