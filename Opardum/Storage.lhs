@@ -9,14 +9,14 @@
 \maketitle
 \ignore{
 
-> {-# LANGUAGE DeriveDataTypeable #-}
+> {-# LANGUAGE DeriveDataTypeable, GADTs #-}
 
 }
 \section{Introduction}
 
 Opardum is designed so that a variety of storage backends can be used, including MongoDB and flat files.
 
-To achieve this end, we define a typeclass, @Storage@, which encapsulates all the operations that Opardum requires - 
+To achieve this end, we define a type, |Storage|, which encapsulates all the operations that Opardum requires - 
 simply, retrieval and storage of documents.
 
 > module Opardum.Storage where
@@ -26,9 +26,9 @@ simply, retrieval and storage of documents.
 
 \section{Implementation}
 
-We define a typeclass |Storage| over the storage type a.
+We define a typeclass |StorageDriver| over the storage type a.
 
-> class Storage a where
+> class StorageDriver a where
 
 We define the two operations required by Opardum. |getDocument| is expected to return an empty string if the document does not exist. It takes a storage handle
 and a document name and produces the document required in string form.
@@ -47,5 +47,15 @@ We also define an IO exception for these actions to throw if they fail (however 
 >                       | GeneralStorageFailure String 
 >                       deriving (Show,Typeable)
 > instance Exception StorageException
+
+Finally, we define a GADT wrapper around the class to completely encapsulate storage drivers as a type rather than a constraint.
+
+> data Storage where
+>    Storage :: StorageDriver a => a -> Storage
+
+> instance StorageDriver Storage where
+>    getDocument (Storage a) = getDocument a
+>    updateDocument (Storage a) = updateDocument a
+
 
 \end{document}

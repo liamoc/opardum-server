@@ -38,7 +38,9 @@ For more information, see the Dyre hackage page at:
 > import Opardum.Websockets
 > import Opardum.Storage
 > import Opardum.Storage.NullStorage
-> import Opardum.ConcurrentChannels
+> import Opardum.Processes
+> import Opardum.Archiver
+> import Opardum.Archiver.Autosaver
 > import Opardum.ConcurrencyControl
 > import Network
 > import qualified Data.Map as M
@@ -50,13 +52,15 @@ This section defines the server configuration type and its default values, which
 We use existential quantification to contain the storage configuration regardless of the storage driver used. See 
 the |Storage| module for more information.
 
-> data Config = forall a. Storage a => Config { location :: String
->                                             , port :: Int
->                                             , storage :: IO a
->                                             }
+> data Config = forall a. (Archiver a) => 
+>                  Config { location :: String
+>                         , port :: Int
+>                         , storage :: IO Storage
+>                         , archiver :: ConfiguredArchiver a
+>                         }
 
 > defaultConfig :: Config
-> defaultConfig = Config defaultLocation defaultPort nullStorage
+> defaultConfig = Config defaultLocation defaultPort nullStorage (autosaver defaultInterval)
 
 > defaultLocation = "localhost"
 
@@ -68,16 +72,15 @@ the |Storage| module for more information.
 |bootstrap| is simply an IO action that starts server threads and initializes storage.
 
 > bootstrap :: Config -> IO ()
-> bootstrap (Config location port startStorage) = withSocketsDo $ do
+> bootstrap (Config location port startStorage archiver) = withSocketsDo $ do
 >   debug $ "Starting Opardum server on port " ++ show port ++ ".."
 >   socket <- listenOn (PortNumber $ fromIntegral port)
 >   debug "Listening for connections."
 >   storage <- startStorage
 >   debug "Initialized Storage"
->   toCM <- runProcess ClientManager $ CMS M.empty storage
+>   toCM <- runProcess ClientManager (CMI storage archiver) M.empty
 >   debug "Created Client Manager"
->   runProcess PortListener (socket, toCM, location, port)
->   return ()
+>   switchTo PortListener (socket, toCM, location, port) ( ())
 
 \subsection{Dyre Glue}
 

@@ -20,10 +20,10 @@ library
    build-depends: base >=4.0, containers >=0.3.0,
                   json >=0.4.3, mtl -any, network >=2.0
    exposed-modules: Opardum.Server Opardum.ConcurrencyControl
-                  Opardum.Storage Opardum.ConcurrentChannels
+                  Opardum.Storage Opardum.Processes
                   Opardum.OperationalTransforms Opardum.Websockets
                   Opardum.ClientRegistry Opardum.Transport
-                  Opardum.ClientThreads Opardum.ConcurrencyControl.Types 
+                  Opardum.ClientThreads
                   Opardum.Storage.NullStorage, Opardum.Configuration               
 
 executable opardum
@@ -32,8 +32,8 @@ executable opardum
    build-depends: base >=4.0, containers >=0.3.0, dyre >=0.8,
                   json >=0.4.3, mtl -any, network >=2.0
    other-modules: Opardum.Server Opardum.ConcurrencyControl
-                  Opardum.Storage Opardum.ConcurrentChannels
+                  Opardum.Storage Opardum.Processes
                   Opardum.OperationalTransforms Opardum.Websockets
                   Opardum.ClientRegistry Opardum.Transport
-                  Opardum.ClientThreads Opardum.ConcurrencyControl.Types 
+                  Opardum.ClientThreads
                   Opardum.Storage.NullStorage, Opardum.Configuration

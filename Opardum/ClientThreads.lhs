@@ -22,10 +22,11 @@ exists for each connected client.
 
 > module Opardum.ClientThreads where
 >
-> import Opardum.ConcurrencyControl.Types
+> import Opardum.DocumentManager.Types
+> import Opardum.ConcurrencyControl (Packet)
 > import Opardum.Transport
 > import Opardum.Websockets
-> import Opardum.ConcurrentChannels
+> import Opardum.Processes
 
 \section{Implementation}
 
@@ -41,9 +42,10 @@ the document manager that the client should be removed.
 > data Listener = Listener
 > instance Process Listener where
 >   type ProcessCommands Listener = ()
->   type ProcessState Listener = (Client, Chan DocumentManagerMsg)
+>   type ProcessState Listener = ()
+>   type ProcessInfo Listener = (Client, Chan DocumentManagerMsg)
 >   continue _ = do
->      (client, toDM) <- getState
+>      (client, toDM) <- getInfo
 >      read <- io $ readFrame client 
 >      debug $ show read
 >      case read of
@@ -70,9 +72,10 @@ document manager that the client should be removed.
 > data Shouter = Shouter
 > instance Process Shouter where
 >   type ProcessCommands Shouter = ShouterMsg
->   type ProcessState Shouter = (Client, Chan DocumentManagerMsg)
+>   type ProcessState Shouter = ()
+>   type ProcessInfo Shouter = (Client, Chan DocumentManagerMsg)
 >   continue _ = do
->     (client, toDM) <- getState
+>     (client, toDM) <- getInfo
 >     inbox <- getInbox
 >     msg <- grabMessage inbox
 >     case msg of

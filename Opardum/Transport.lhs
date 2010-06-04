@@ -23,7 +23,7 @@ particularly if the client can be rewritten in Haskell or a Haskell-like languag
 
 > module Opardum.Transport where
 > import Opardum.OperationalTransforms
-> import Opardum.ConcurrencyControl.Types
+> import Opardum.ConcurrencyControl
 > import Text.JSON
 
 Because the JSON module defines numerous serializations for common types, we simply need to define

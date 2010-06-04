@@ -17,11 +17,11 @@ This module defines a simple no-op storage driver for use as the default. The ef
 >
 > data NullStorage = NullStorage
 >
-> instance Storage NullStorage where
+> instance StorageDriver NullStorage where
 >    getDocument _ _      = return ""
 >    updateDocument _ _ _ = return ()
 
-> nullStorage :: IO NullStorage
-> nullStorage = return NullStorage
+> nullStorage :: IO Storage
+> nullStorage = return (Storage $ NullStorage)
 
 \end{document}

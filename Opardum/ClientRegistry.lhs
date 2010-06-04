@@ -26,10 +26,10 @@ mechanics of creating, removing, and communicating to a client thread.
 >   ) where
 
 > import Opardum.ClientThreads
-> import Opardum.ConcurrentChannels
+> import Opardum.Processes
 > import Opardum.Websockets
 > import Opardum.OperationalTransforms
-> import Opardum.ConcurrencyControl.Types
+> import Opardum.DocumentManager.Types
 >
 > import Control.Applicative((<$>))
 > import qualified Data.Map as M
@@ -85,8 +85,8 @@ obvious amount, say, 0.
 > createClient :: ClientRegistry -> Client -> IO ()
 > createClient (ClientRegistry reg) c = do
 >   (cd, toDM) <- readIORef reg
->   shouter  <- runProcess Shouter (c, toDM)
->   runProcess Listener (c, toDM)
+>   shouter  <- runProcess' Shouter (c, toDM)
+>   runProcess' Listener (c, toDM)
 >   writeIORef reg (M.insert c (ClientData shouter 0) cd, toDM)
 
 Similarly, the |removeClient| function simply sends @Terminate@ messages to the client threads,

@@ -19,16 +19,18 @@ In this module are contained singleton threads that manage initial client connec
 \section{Implementation}
 
 > module Opardum.Server
->   ( -- ClientManager
->     PortListener (..)
->   , ClientManagerState (..)
+>   ( module Opardum.Server.Types
+>   , PortListener (..)
+>   , ClientManagerInfo (..)
 >   ) where
 >
 > import Opardum.Websockets
-> import Opardum.ConcurrentChannels
-> import Opardum.ConcurrencyControl
+> import Opardum.Processes
+> import Opardum.DocumentManager
 > import Opardum.OperationalTransforms
+> import Opardum.Server.Types
 > import Opardum.Storage
+> import Opardum.Archiver
 > 
 > import Data.Char
 > import qualified Data.Map as M
@@ -60,16 +62,19 @@ data ClientManager = ClientManager
 \end{code}
 
 
-> data ClientManagerState = forall a. Storage a => CMS (M.Map String (Chan DocumentManagerMsg)) a
+> data ClientManagerInfo = forall a. (Archiver a) => CMI Storage (ConfiguredArchiver a)
 > instance Process ClientManager where
 >   type ProcessCommands ClientManager = ClientManagerMsg
->   type ProcessState ClientManager = ClientManagerState
+>   type ProcessInfo ClientManager = ClientManagerInfo
+>   type ProcessState ClientManager =  (M.Map String (Chan DocumentManagerMsg))
 >   continue _ = do
->      (inbox, CMS documents storage) <- get
+>      CMI storage archiver <- getInfo
+>      inbox <- getInbox
+>      documents <- getState
 >      message <- grabMessage inbox
 >      debug $ "clientManager recieved message: " ++ show message
 >      case message of
->        RemoveDocument docName -> putState $ CMS (M.delete docName documents) storage
+>        RemoveDocument docName -> putState $ M.delete docName documents
 >        AddClient client -> forkThread $ ask client inbox
 >        AddClientToDoc client docName -> do
 >          case M.lookup docName documents of
@@ -77,9 +82,9 @@ data ClientManager = ClientManager
 >            Nothing   -> do
 >              snapshot <- strToSnapshot <$> (io $ getDocument storage docName)
 >              debug $ "spawning document manager for document: " ++ docName
->              dm <- io $ spawnDocumentManager inbox docName snapshot storage
+>              dm <- io $ spawnDocumentManager inbox docName snapshot storage archiver
 >              NewClient client ~> dm
->              putState $ CMS (M.insert docName dm documents) storage
+>              putState $ M.insert docName dm documents
 >      continue ClientManager
 >      where
 >        strToSnapshot :: String -> Op
@@ -102,12 +107,16 @@ connections, forwarding to the client manager.
 > data PortListener = PortListener
 > instance Process PortListener where
 >   type ProcessCommands PortListener = ()
->   type ProcessState PortListener = (Socket, Chan ClientManagerMsg, String, Int)
+>   type ProcessState PortListener = ()
+>   type ProcessInfo PortListener = (Socket, Chan ClientManagerMsg, String, Int)
 >   continue _ = do
->     (socket, toCM, location, port) <- getState
+>     (socket, toCM, location, port) <- getInfo
 >     client <- io $ acceptWeb socket location port
->     AddClient client ~> toCM
+>     AddClient client ~> toCM     
 >     continue PortListener
 >   nullChannel _ = True
+
+
+
 
 \end{document}

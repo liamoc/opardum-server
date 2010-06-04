@@ -30,7 +30,7 @@ The |FileStorage| type is, internally, a @newtype@ around the directory in which
 
 Our instance of the @Storage@ class provides simple flat file implementations for get and update Opardum operations.
 
-> instance Storage FileStorage where
+> instance StorageDriver FileStorage where
 >     getDocument (F dir) n = let filename = (addTrailingPathSeparator dir) `replaceFileName` n
 >                             in do v <- doesFileExist filename
 >                                   if v then readFile filename
@@ -41,9 +41,9 @@ Our instance of the @Storage@ class provides simple flat file implementations fo
 
 Finally, the |flatFile| action creates a |FileStorage| type given a directory.
 
-> flatFile :: FilePath -> IO FileStorage
+> flatFile :: FilePath -> IO Storage
 > flatFile dir = do v <- doesDirectoryExist dir
->                   if v then return $ F dir
+>                   if v then return $ Storage $ F dir
 >                        else throw $ InvalidConfiguration "Directory does not exist!"
 
 

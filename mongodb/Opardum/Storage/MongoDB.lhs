@@ -46,9 +46,9 @@ Various MongoDB configuration options are specified here. Note that a port numbe
 >                          , databaseName = "opardum.documents" 
 >                          }
 
-Our instance of the @Storage@ class provides MongoDB implementations for standard Opardum operations. See the @Storage@ module for details. 
+Our instance of the @StorageDriver@ class provides MongoDB implementations for standard Opardum operations. See the @Storage@ module for details. 
 
-> instance Storage MongoDBStorage where
+> instance StorageDriver MongoDBStorage where
 >    getDocument (MDB (conn,db)) str = do doc <- findOne conn db $ toBsonDoc [("name",toBson str)]
 >                                         putStrLn $ "got " ++ show doc
 >                                         return $ case doc of 
@@ -63,13 +63,13 @@ Our instance of the @Storage@ class provides MongoDB implementations for standar
 
 Finally, the |mongoDB| action initializes a MongoDB connection using the provided configuration.
 
-> mongoDB :: MongoDBConfig -> IO MongoDBStorage
+> mongoDB :: MongoDBConfig -> IO Storage
 > mongoDB (MongoDBConfig l p db sok) = do 
 >                                 conn <- (if p == -1 
 >                                          then connect l 
 >                                          else connectOnPort l $ PortNumber (fromIntegral p)) 
 >                                        $ if sok then [SlaveOK] else []
->                                 return $ MDB (conn, fromString db)
+>                                 return $ Storage $ MDB (conn, fromString db)
 
 
 \end{document}
