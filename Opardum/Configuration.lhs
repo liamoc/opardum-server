@@ -9,8 +9,6 @@
 \maketitle
 \ignore{
 
-> {-# LANGUAGE ExistentialQuantification #-}
-
 }
 \section{Introduction}
 

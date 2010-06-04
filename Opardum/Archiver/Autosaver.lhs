@@ -9,7 +9,7 @@
 \maketitle
 \ignore{
 
-> {-# LANGUAGE TypeFamilies, ExistentialQuantification  #-}
+> {-# LANGUAGE TypeFamilies #-}
 
 }
 \section{Introduction}
