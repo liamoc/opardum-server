@@ -64,12 +64,12 @@ between saves.
 >   nullChannel _ = True
 >
 
-We also make |Autosaver| an implementation of the subclass @Archiver@, specifying its configuration
+We also make |Autosaver| an implementation of the subclass |ArchiverProcess|, specifying its configuration
 type to be the time it should wait between saving.
 
-> instance Archiver Autosaver where
+> instance ArchiverProcess Autosaver where
 >   type ArchiverConfig Autosaver = Int -- Interval
->   initArchiver (ConfiguredArchiver _ wait) storage docName = do
+>   initArchiver _ wait storage docName = do
 >        mv <- io $ (newEmptyMVar :: IO (MVar ArchiverData))
 >        toA <- runProcess' Autosaver (mv, storage, docName, wait)
 >        return (toA, mv)
@@ -79,8 +79,8 @@ type to be the time it should wait between saving.
 
 Finally, we provide a simple function to make the configuration file look neater.
 
-> autosaver :: Int -> ConfiguredArchiver Autosaver
-> autosaver = ConfiguredArchiver Autosaver 
+> autosaver :: Int -> Archiver
+> autosaver = Archiver Autosaver
 
 
 \end{document}

@@ -24,7 +24,7 @@ be updated multiple times but only the more recent snapshot is stored.
 We run archiving operations asychronously as they are not needed for operational transforms, and
 they may be slow given many transactions.
 
-> module Opardum.Archiver ( ArchiverData (..), Archiver (..), ConfiguredArchiver (..) ) where
+> module Opardum.Archiver ( ArchiverData (..), Archiver (..), ArchiverProcess (..) ) where
 >
 > import Opardum.Processes
 > import Opardum.ConcurrencyControl
@@ -40,18 +40,18 @@ channel and the MVar, and kickstarting the archiver |Process| with the provided 
 
 > data ArchiverData = Archive Snapshot
 >                   | ATerminate Snapshot
-> class (Process a) => Archiver a where
+> class (Process a) => ArchiverProcess a where
 >   type ArchiverConfig a
 >   initArchiver :: (MonadIO m)
->                => ConfiguredArchiver a 
+>                => a
+>                -> ArchiverConfig a
 >                -> Storage
 >                -> DocName 
 >                -> m (ChanFor a, MVar ArchiverData)
 
-> data ConfiguredArchiver :: * -> * where
->    ConfiguredArchiver :: Archiver a => a -> ArchiverConfig a -> ConfiguredArchiver a
+> data Archiver :: * where
+>    Archiver :: ArchiverProcess a => a -> ArchiverConfig a -> Archiver
 
-> 
 
 
 \end{document}

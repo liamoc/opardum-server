@@ -205,6 +205,8 @@ for the process is returned.
 >                              runProcessWith p c info state 
 >                              return c
 
+And a helper for stateless threads:
+
 > runProcess' :: (MonadIO m, Process p, ProcessState p ~ ()) => p -> ProcessInfo p -> m (ChanFor p)
 > runProcess' p info = runProcess p info ()
 

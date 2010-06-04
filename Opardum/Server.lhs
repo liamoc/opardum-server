@@ -21,7 +21,6 @@ In this module are contained singleton threads that manage initial client connec
 > module Opardum.Server
 >   ( module Opardum.Server.Types
 >   , PortListener (..)
->   , ClientManagerInfo (..)
 >   ) where
 >
 > import Opardum.Websockets
@@ -62,13 +61,13 @@ data ClientManager = ClientManager
 \end{code}
 
 
-> data ClientManagerInfo = forall a. (Archiver a) => CMI Storage (ConfiguredArchiver a)
+
 > instance Process ClientManager where
 >   type ProcessCommands ClientManager = ClientManagerMsg
->   type ProcessInfo ClientManager = ClientManagerInfo
+>   type ProcessInfo ClientManager = (Storage, Archiver)
 >   type ProcessState ClientManager =  (M.Map String (Chan DocumentManagerMsg))
 >   continue _ = do
->      CMI storage archiver <- getInfo
+>      (storage, archiver) <- getInfo
 >      inbox <- getInbox
 >      documents <- getState
 >      message <- grabMessage inbox

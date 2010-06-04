@@ -155,8 +155,8 @@ Spawning a document manager initializes it with some simple empty state. Seeing 
 manager and the archiver are fairly tightly bound, this is also used to spawn an archiver.
 The document manager is responsible for ensuring the archiver terminates.
 
-> spawnDocumentManager toCM docName doc storage archiver = do
->   (toAR, mv) <- initArchiver archiver storage docName  
+> spawnDocumentManager toCM docName doc storage (Archiver archiver config) = do
+>   (toAR, mv) <- initArchiver archiver config storage docName  
 >   c <- createChannel DocumentManager
 >   cr <- io $ createRegistry c
 >   runProcessWith DocumentManager c (toCM, mv, cr, docName) (doc, M.empty)

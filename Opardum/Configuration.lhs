@@ -52,12 +52,11 @@ This section defines the server configuration type and its default values, which
 We use existential quantification to contain the storage configuration regardless of the storage driver used. See 
 the |Storage| module for more information.
 
-> data Config = forall a. (Archiver a) => 
->                  Config { location :: String
->                         , port :: Int
->                         , storage :: IO Storage
->                         , archiver :: ConfiguredArchiver a
->                         }
+> data Config = Config { location :: String
+>                      , port :: Int
+>                      , storage :: IO Storage
+>                      , archiver :: Archiver
+>                      }
 
 > defaultConfig :: Config
 > defaultConfig = Config defaultLocation defaultPort nullStorage (autosaver defaultInterval)
@@ -78,7 +77,7 @@ the |Storage| module for more information.
 >   debug "Listening for connections."
 >   storage <- startStorage
 >   debug "Initialized Storage"
->   toCM <- runProcess ClientManager (CMI storage archiver) M.empty
+>   toCM <- runProcess ClientManager (storage, archiver) M.empty
 >   debug "Created Client Manager"
 >   switchTo PortListener (socket, toCM, location, port) ( ())
 
