@@ -10,6 +10,7 @@
 \ignore{
 
 > {-# LANGUAGE TypeFamilies #-}
+> {-# OPTIONS_GHC -fno-warn-unused-do-bind -fno-warn-orphans #-}
 
 }
 \section{Introduction}
@@ -41,7 +42,6 @@ distributing the transformed op to other clients.
 > import Opardum.Archiver
 > import Opardum.Server.Types
 >
-> import Control.Exception
 > import Control.Concurrent.MVar
 > import Control.Monad.State
 > import Data.Maybe
@@ -95,10 +95,9 @@ access.
 >                                       )
 >   type ProcessCommands DocumentManager = DocumentManagerMsg
 >   continue _ = do
->     inbox <- getInbox
 >     (toCM, mv, cr, docName) <- getInfo
 >     (doc, cl) <- getState
->     currentMessage <- grabMessage inbox
+>     currentMessage <- grabInbox
 
 Once all clients disconnect, the storage is committed, and the archiver and document manager will
 terminate.
@@ -155,8 +154,9 @@ Spawning a document manager initializes it with some simple empty state. Seeing 
 manager and the archiver are fairly tightly bound, this is also used to spawn an archiver.
 The document manager is responsible for ensuring the archiver terminates.
 
+> spawnDocumentManager :: MonadIO m => Chan ClientManagerMsg -> DocName -> Snapshot -> Storage -> Archiver -> m (ChanFor DocumentManager)
 > spawnDocumentManager toCM docName doc storage (Archiver archiver config) = do
->   (toAR, mv) <- initArchiver archiver config storage docName  
+>   (_, mv) <- initArchiver archiver config storage docName  
 >   c <- createChannel DocumentManager
 >   cr <- io $ createRegistry c
 >   runProcessWith DocumentManager c (toCM, mv, cr, docName) (doc, M.empty)

@@ -15,7 +15,7 @@
 \section{Introduction}
 The autosaver is an asynchronous thread that, every 10 seconds (or a user-defined time), 
 commits new documents to some permananent data storage, as defined in the @Storage@ module. 
-It implements the @Archiver@ interface. It reads data from an |MVar| shared with the document 
+It implements the @ArchiverProcess@ interface. It reads data from an |MVar| shared with the document 
 manager. 
 
 > module Opardum.Archiver.Autosaver 
@@ -61,6 +61,7 @@ between saves.
 >        ATerminate [Insert doc] -> io $ updateDocument store docName doc
 >        Archive []              -> do io $ updateDocument store docName ""; continue me
 >        ATerminate []           -> io $ updateDocument store docName ""
+>        _                       -> return ()
 >   nullChannel _ = True
 >
 

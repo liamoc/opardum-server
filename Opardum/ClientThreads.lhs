@@ -46,9 +46,8 @@ the document manager that the client should be removed.
 >   type ProcessInfo Listener = (Client, Chan DocumentManagerMsg)
 >   continue _ = do
 >      (client, toDM) <- getInfo
->      read <- io $ readFrame client 
->      debug $ show read
->      case read of
+>      input <- io $ readFrame client 
+>      case input of
 >        Left _    -> RemoveClient client ~> toDM 
 >        Right str -> case deserialize str of
 >                       Nothing -> RemoveClient client ~> toDM
@@ -76,8 +75,7 @@ document manager that the client should be removed.
 >   type ProcessInfo Shouter = (Client, Chan DocumentManagerMsg)
 >   continue _ = do
 >     (client, toDM) <- getInfo
->     inbox <- getInbox
->     msg <- grabMessage inbox
+>     msg <- grabInbox
 >     case msg of
 >        STerminate -> return ()
 >        Shout pack -> do v <- io $ sendFrame client (serialize pack) 

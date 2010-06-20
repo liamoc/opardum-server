@@ -15,6 +15,7 @@
 
 > import Opardum.Configuration
 
+> main :: IO ()
 > main = opardum defaultConfig
 
 \end{document}

@@ -89,8 +89,12 @@ First we define functions for use in Pattern Guards to identify the type of a co
 > delete :: OpComponent -> Bool
 > delete (Delete _) = True
 > delete _          = False
+>
+> insert :: OpComponent -> Bool
 > insert (Insert _) = True
 > insert _          = False
+>
+> retain :: OpComponent -> Bool
 > retain (Retain _) = True
 > retain _          = False
 
@@ -116,7 +120,7 @@ characters.
 > first :: Int -> OpComponent -> OpComponent
 > first n (Insert str) = Insert $ take n str
 > first n (Delete str) = Delete $ take n str
-> first n (Retain num) = Retain $ n
+> first n (Retain _  ) = Retain $ n
 
 The |normalize| function is used to reconnect contiguous regions of operation components,
 as the zip operations performed by composition and transformation can cause unnecessary
@@ -142,6 +146,7 @@ $o$. However, |[]| applied to any operation $o'$ is not just $o'$, as the operat
 is required to specify |Retain| actions up until the end of the operation it is meant to apply
 to. This is enforced in composition for error checking.
 
+> compose :: Op -> Op -> Maybe Op
 > compose o  [] = Just o
 
 For the rest of this function, we will consider the relation to be applying the operation $s_1$ to
@@ -188,8 +193,9 @@ and split either op depending on which one is larger. We also check that the tex
 >               op2Length = oplength op2
 >               textOk = text op1 `isPrefixOf` text op2 ||
 >                        text op2 `isPrefixOf` text op1
->               text (Insert t) = t
->               text (Delete t) = t
+>               text (Insert tx) = tx
+>               text (Delete tx) = tx
+>               text (Retain _ ) = ""
 > compose _ _ = Nothing
 
 \section{Transform Function}
@@ -266,7 +272,7 @@ A deletion in one op causes the other action (which cannot be an insert due to t
 to be shortened or removed. This causes a split in the zip unless the two ops are of equal size.
 
 >        | delete op = (op, Retain 0):subtraction
->        | delete ag = (Retain 0, ag):subtraction
+>        | otherwise = (Retain 0, ag):subtraction  -- delete ag
 >        where
 >          subtraction = let [l_op, l_ag] = map oplength [op, ag]
 >                         in case compare l_op l_ag of

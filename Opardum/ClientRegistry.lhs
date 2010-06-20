@@ -7,7 +7,11 @@
 \begin{document}
 \title{Opardum: Client Registry }
 \maketitle
+\ignore{
 
+> {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
+
+}
 \section{Introduction}
 
 In order to create a barrier of abstraction between broader, per-document threads and specific,
@@ -68,9 +72,7 @@ With that in mind, we define the |ClientRegistryData| structure as a pair, conta
 \end{itemize}
 
 > type ClientRegistryData = (M.Map Client ClientData, Chan DocumentManagerMsg)
-> data ClientData = ClientData { getShouter  :: ChanFor Shouter
->                              , d_value     :: Int
->                              }
+> data ClientData = ClientData (ChanFor Shouter) Int
 
 \subsection {Functions}
 
@@ -104,7 +106,7 @@ The |sendSnapshot| function sends a single op (the composed document snapshot) t
 
 > sendSnapshot :: ClientRegistry -> Op -> Client -> IO ()
 > sendSnapshot (ClientRegistry reg) op c = do
->   (cd, toDM) <- readIORef reg
+>   cd <- fst <$> readIORef reg
 >   let (ClientData shouter _) = cd M.! c
 >   Shout (0,op) ~> shouter
 
@@ -116,11 +118,11 @@ operations we send to it correctly.
 > sendOp :: ClientRegistry -> Op -> Client -> IO ()
 > sendOp (ClientRegistry reg) op c = do
 >   (cd, toDM) <- readIORef reg
->   let (ClientData s d) = cd M.! c
+>   let (ClientData s c_d) = cd M.! c
 >   cd' <- flip T.mapM (M.delete c cd) $ \(ClientData shouter d) -> do
 >          Shout (d, op) ~> shouter
 >          return $ ClientData shouter 0
->   writeIORef reg (M.insert c (ClientData s (d+1)) cd', toDM)
+>   writeIORef reg (M.insert c (ClientData s (c_d+1)) cd', toDM)
 
 Finally, the |numClients| function is simply a wrapper around the |size| function in @Data.Map@.
 

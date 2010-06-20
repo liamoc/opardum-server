@@ -49,6 +49,8 @@ channel and the MVar, and kickstarting the archiver |Process| with the provided 
 >                -> DocName 
 >                -> m (ChanFor a, MVar ArchiverData)
 
+We also define a GADT wrapper around the class to encapsulate archivers as a type rather than a constraint.
+
 > data Archiver :: * where
 >    Archiver :: ArchiverProcess a => a -> ArchiverConfig a -> Archiver
 

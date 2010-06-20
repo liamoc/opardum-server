@@ -9,6 +9,8 @@
 \maketitle
 \ignore{
 
+> {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+
 }
 \section{Introduction}
 
@@ -33,22 +35,17 @@ For more information, see the Dyre hackage page at:
 > import Debug.Trace
 
 > import Opardum.Server
-> import Opardum.Websockets
 > import Opardum.Storage
 > import Opardum.Storage.NullStorage
 > import Opardum.Processes
 > import Opardum.Archiver
 > import Opardum.Archiver.Autosaver
-> import Opardum.ConcurrencyControl
 > import Network
 > import qualified Data.Map as M
 
 \subsection{Server Configuration}
 
-This section defines the server configuration type and its default values, which uses the default Null storage driver.
-
-We use existential quantification to contain the storage configuration regardless of the storage driver used. See 
-the |Storage| module for more information.
+This section defines the server configuration type and its default values, which uses the default Null storage driver, and the autosaver archiver.
 
 > data Config = Config { location :: String
 >                      , port :: Int
@@ -59,8 +56,10 @@ the |Storage| module for more information.
 > defaultConfig :: Config
 > defaultConfig = Config defaultLocation defaultPort nullStorage (autosaver defaultInterval)
 
+> defaultLocation :: String
 > defaultLocation = "localhost"
 
+> defaultPort :: Int
 > defaultPort = 9988
 
 
@@ -83,6 +82,7 @@ the |Storage| module for more information.
 
 This function is applied by configuration files with a |Config| in order to configure Opardum.
 
+> opardum :: Config -> IO ()
 > opardum = Dyre.wrapMain $ Dyre.defaultParams
 >         { Dyre.projectName = "opardum"
 >         , Dyre.realMain    = bootstrap

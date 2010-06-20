@@ -5,7 +5,11 @@
 % Released under BSD3 License
 %include lhs.include
 \begin{document}
+\ignore{
 
+> {-# OPTIONS_GHC -fno-warn-orphans #-}
+
+}
 \title{Opardum: Transport}
 \maketitle
 
@@ -35,15 +39,18 @@ For the deserialization operation, |readJSON|, we make use of the data types pro
 @Text.JSON@ library. We also use the |Maybe| monad, so that any failure in the deserialization
 will short circuit the whole action without lots of explicit boilerplate logic.
 
->    readJSON (JSObject v) = maybe (Error "Malformed operation component") Ok $
->       let assocs = fromJSObject v in do 
+>    readJSON (JSObject o) = maybe (Error "Malformed operation component") Ok $
+>       let assocs = fromJSObject o in do 
 >          JSString strdata <- lookup "data" assocs
 >          JSString v       <- lookup "type" assocs
 >          case fromJSString v of
->             "Insert" -> return $ Insert $ fromJSString strdata
->             "Delete" -> return $ Delete $ fromJSString strdata
+>             "Insert" -> Just $ Insert $ fromJSString strdata
+>             "Delete" -> Just $ Delete $ fromJSString strdata
 >             "Retain" -> case (reads $ fromJSString strdata) of
->                            [(v,"")] -> return $ Retain v
+>                            [(x,"")] -> return $ Retain x
+>                            _        -> Nothing
+>             _        -> Nothing
+>    readJSON _ = Error "Unexpected JSON value"
 
 Finally, we have a serialization operation, which encodes an operation component in JSON text.
 

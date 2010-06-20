@@ -11,6 +11,7 @@
 \ignore{
 
 > {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, DeriveDataTypeable, TypeFamilies #-}
+> {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
 }
 \section{Introduction}
@@ -25,6 +26,7 @@ to write threads with thread-local state, and GHC type families, to generalize o
 >   , debug
 >   , (~>)
 >   , grabMessage
+>   , grabInbox
 >   , ThreadState()
 >   , Chan()
 >   , Process(..)
@@ -42,7 +44,7 @@ to write threads with thread-local state, and GHC type families, to generalize o
 >   ) where
 >
 > import qualified Control.Concurrent.Chan as C
-> import Control.Concurrent (ThreadId, forkIO)
+> import Control.Concurrent (forkIO)
 > import Control.Monad.Trans
 > import Control.Monad.State
 > import Control.Monad.Reader
@@ -80,10 +82,6 @@ unit return to be |ThreadState|.
 
 > type ThreadState r s = ThreadStateM r s ()
 
-A convenience type also exists for a stateless thread:
-
-> type StatelessThread r = ThreadStateM r () ()
-
 We also provide a simple lifted |forkIO| so that threads can start jobs asynchronously that terminate as soon as they finish. 
 For long running threads, |Process|es should be used.
 
@@ -109,13 +107,18 @@ First, is the "send to" relation, |~>|, which is analogous to the |writeChan| fu
 
 > (~>) :: MonadIO m => a -> Chan a -> m ()
 > v ~> (Chan a) = io $ C.writeChan a v
-> v ~> (NullChan) = return ()
+> _ ~> (NullChan) = return ()
 
 We also have an analog for the |readChan| function, |grabMessage|.
 
 > grabMessage :: MonadIO m => Chan a -> m a
 > grabMessage (Chan a) = io . C.readChan $ a
 > grabMessage NullChan = throw NullChannelException
+
+We also provide a way to |grabMessage| from a process inbox (see below)
+
+> grabInbox :: ThreadStateM (Chan a,b) c a
+> grabInbox = getInbox >>= grabMessage
 
 And, predictably, an analog for the |newChan| function, which goes by the same name. These methods are not 
 exported, however, as the only way to create a channel is based on the |Process| which owns it (see below).
@@ -176,7 +179,7 @@ to provide initial state.
 > runProcessWith :: (MonadIO m, Process p)  => p -> ChanFor p -> ProcessInfo p -> ProcessState p ->  m ()
 > runProcessWith p chan info state = 
 >    let 
->      v = unbox $ continue p
+>      ThreadState v = continue p
 >    in do
 >      io $ forkIO $ flip runReaderT (chan, info) $ runStateT v state >> return ()
 >      return ()

@@ -10,6 +10,7 @@
 \ignore{
 
 > {-# LANGUAGE TypeFamilies #-}
+> {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 }
 \section{Introduction}
@@ -33,7 +34,6 @@ In this module are contained singleton threads that manage initial client connec
 > 
 > import Data.Char
 > import qualified Data.Map as M
-> import Control.Monad.State
 > import Control.Applicative ((<$>))
 > import Network(Socket)
 
@@ -68,10 +68,10 @@ data ClientManager = ClientManager
 >   type ProcessState ClientManager =  (M.Map String (Chan DocumentManagerMsg))
 >   continue _ = do
 >      (storage, archiver) <- getInfo
->      inbox <- getInbox
 >      documents <- getState
->      message <- grabMessage inbox
+>      message <- grabInbox
 >      debug $ "clientManager recieved message: " ++ show message
+>      inbox <- getInbox
 >      case message of
 >        RemoveDocument docName -> putState $ M.delete docName documents
 >        AddClient client -> forkThread $ ask client inbox

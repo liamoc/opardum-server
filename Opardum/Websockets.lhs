@@ -6,6 +6,11 @@
 %include lhs.include
 \begin{document}
 \title{Opardum: Web Sockets Interface}
+\ignore{
+
+> {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+
+}
 \maketitle
 
 \section{Introduction}
