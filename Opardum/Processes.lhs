@@ -177,7 +177,8 @@ the state tuple manually:
 > getInfo = snd <$> ask
 
 We introduce a runner for |Process|es, which is a wrapper around both |forkIO|, to spawn the thread, and |runStateT|,
-to provide initial state.
+to provide initial state.  It is worth noting that the exact process to invoke is determined entirely from the type
+of the channel passed in, and hence the exact process to run is not specified upon use of this action.
 
 > runProcessWith :: (MonadIO m, Process p)  => ChanFor p -> ProcessInfo p -> ProcessState p ->  m ()
 > runProcessWith chan info state = 
@@ -190,6 +191,8 @@ to provide initial state.
 We also provide a means to create a channel destined for a particular process. For safety reasons (to prevent null
 channels from ending up where they are not supposed to), this is the only way to create channels outside of this module.
 
+A significant amount of glue is required to determine whether the channel should be null from the type.
+
 > createChannel :: (MonadIO m, Process p) => m (ChanFor p)
 > createChannel = do ret <- newNullChan
 >                    if typesCheck ret then return ret else newChan
@@ -198,7 +201,8 @@ channels from ending up where they are not supposed to), this is the only way to
 >                                          
 
 We provide two further ways to invoke a process. First, we provide |switchTo|, which allows the current thread to begin execution 
-of the |Process|. 
+of the |Process|. This requires a (undefined) argument of the correct process type to determine the process to use, as the process
+type cannot be determined from the channel as no channel is provided.
 
 > switchTo :: (MonadIO m, Process p) => p -> ProcessInfo p -> ProcessState p -> m ()
 > switchTo (_ :: p) info state = do c <- (createChannel :: MonadIO m => m (ChanFor p))
@@ -207,7 +211,7 @@ of the |Process|.
 >                                   return ()
 
 Finally, we provide a convenience function to both create the channel for, and run a |Process| in another thread. The channel 
-for the process is returned. 
+for the process is returned. Note that the process to run is determined entirely by context and need not be specified.
 
 > runProcess :: (MonadIO m, Process p) => ProcessInfo p -> ProcessState p -> m (ChanFor p)
 > runProcess info state = do c <- createChannel

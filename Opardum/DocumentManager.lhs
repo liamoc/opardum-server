@@ -51,12 +51,6 @@ distributing the transformed op to other clients.
 We define the input message to a document manager to include a message for when a client has connected,
 a message for when a client has disconnected, and a message when a client sends an op.
 
-\emph{Note:} The |DocumentManagerMsg| type is actually in the undocumented @DocumentManager.Types@ module, 
-simply to get around circular module imports.
-
-\begin{code}%
-\end{code}
-
 All communication to clients is handled by the |ClientRegistry| type, so most of the client-management
 logic in this thread is dumb. The salient part of the logic is the handler for the |NewOp| message.
 
