@@ -9,7 +9,7 @@
 \maketitle
 \ignore{
 
-> {-# LANGUAGE TypeFamilies #-}
+> {-# LANGUAGE TypeFamilies, EmptyDataDecls #-}
 > {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 }
@@ -21,7 +21,7 @@ In this module are contained singleton threads that manage initial client connec
 
 > module Opardum.Server
 >   ( module Opardum.Server.Types
->   , PortListener (..)
+>   , PortListener
 >   ) where
 >
 > import Opardum.Websockets
@@ -54,19 +54,17 @@ after the message is sent, the client is directed back to the clientManager to b
 document manager.
 
 \begin{code}%
-data ClientManagerMsg = AddClient Client
-                      | AddClientToDoc Client String
-                      | RemoveDocument String
-data ClientManager = ClientManager
+data instance ProcessCommands ClientManager = AddClient Client
+                                            | AddClientToDoc Client String
+                                            | RemoveDocument String
+                                            deriving (Show)
+data ClientManager
 \end{code}
 
-
-
 > instance Process ClientManager where
->   type ProcessCommands ClientManager = ClientManagerMsg
 >   type ProcessInfo ClientManager = (Storage, Archiver)
->   type ProcessState ClientManager =  (M.Map String (Chan DocumentManagerMsg))
->   continue _ = do
+>   type ProcessState ClientManager =  (M.Map String (ChanFor DocumentManager))
+>   continue = do
 >      (storage, archiver) <- getInfo
 >      documents <- getState
 >      message <- grabInbox
@@ -84,7 +82,7 @@ data ClientManager = ClientManager
 >              dm <- io $ spawnDocumentManager inbox docName snapshot storage archiver
 >              NewClient client ~> dm
 >              putState $ M.insert docName dm documents
->      continue ClientManager
+>      continue
 >      where
 >        strToSnapshot :: String -> Op
 >        strToSnapshot []  = []
@@ -103,16 +101,15 @@ data ClientManager = ClientManager
 The port listener is a very dumb thread that simply listens on the specified TCP port for incoming
 connections, forwarding to the client manager.
 
-> data PortListener = PortListener
+> data PortListener 
 > instance Process PortListener where
->   type ProcessCommands PortListener = ()
+>   type ProcessInfo PortListener = (Socket, ChanFor ClientManager, String, Int)
 >   type ProcessState PortListener = ()
->   type ProcessInfo PortListener = (Socket, Chan ClientManagerMsg, String, Int)
->   continue _ = do
+>   continue = do
 >     (socket, toCM, location, port) <- getInfo
 >     client <- io $ acceptWeb socket location port
 >     AddClient client ~> toCM     
->     continue PortListener
+>     continue
 >   nullChannel _ = True
 
 

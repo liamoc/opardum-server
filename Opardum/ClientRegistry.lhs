@@ -71,14 +71,14 @@ With that in mind, we define the |ClientRegistryData| structure as a pair, conta
 \item A channel for the |DocumentManager| which created it.
 \end{itemize}
 
-> type ClientRegistryData = (M.Map Client ClientData, Chan DocumentManagerMsg)
+> type ClientRegistryData = (M.Map Client ClientData, ChanFor DocumentManager)
 > data ClientData = ClientData (ChanFor Shouter) Int
 
 \subsection {Functions}
 
 The constructor for this ADT, |createRegistry|, is simply a wrapper around an empty map:
 
-> createRegistry :: Chan DocumentManagerMsg -> IO ClientRegistry
+> createRegistry :: ChanFor DocumentManager -> IO ClientRegistry
 > createRegistry toDM = ClientRegistry <$> newIORef (M.empty, toDM)
 
 To create a client, we simply spawn the two client threads, and set the $d_s$ value to an
@@ -87,8 +87,8 @@ obvious amount, say, 0.
 > createClient :: ClientRegistry -> Client -> IO ()
 > createClient (ClientRegistry reg) c = do
 >   (cd, toDM) <- readIORef reg
->   shouter  <- runProcess' Shouter (c, toDM)
->   runProcess' Listener (c, toDM)
+>   shouter  <- runProcessStateless (c, toDM)
+>   runProcessStateless (c, toDM) :: IO (ChanFor Listener)
 >   writeIORef reg (M.insert c (ClientData shouter 0) cd, toDM)
 
 Similarly, the |removeClient| function simply sends @Terminate@ messages to the client threads,

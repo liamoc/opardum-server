@@ -74,9 +74,9 @@ This section defines the server configuration type and its default values, which
 >   debug "Listening for connections."
 >   storage <- startStorage
 >   debug "Initialized Storage"
->   toCM <- runProcess ClientManager (storage, archiver) M.empty
+>   toCM <- runProcess (storage, archiver) M.empty
 >   debug "Created Client Manager"
->   switchTo PortListener (socket, toCM, location, port) ( ())
+>   switchTo (undefined :: PortListener) (socket, toCM, location, port) (undefined)
 
 \subsection{Dyre Glue}
 

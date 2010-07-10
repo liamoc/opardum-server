@@ -32,6 +32,7 @@ manager.
 >
 > import Control.Concurrent(threadDelay)
 > import Control.Concurrent.MVar
+> import Control.Monad.Trans
 
 \section{Implementation}
 
@@ -50,16 +51,15 @@ between saves.
 >                                , Interval
 >                                )
 >   type ProcessState Autosaver = ()
->   type ProcessCommands Autosaver = ()
->   continue me = do
+>   continue = do
 >     (mv, store, docName, wait) <- getInfo
 >     io $ threadDelay wait
 >     msg <- io $ takeMVar mv
 >     debug $ "committing"
 >     case msg of
->        Archive [Insert doc]    -> do io $ updateDocument store docName doc; continue me
+>        Archive [Insert doc]    -> do io $ updateDocument store docName doc; continue
 >        ATerminate [Insert doc] -> io $ updateDocument store docName doc
->        Archive []              -> do io $ updateDocument store docName ""; continue me
+>        Archive []              -> do io $ updateDocument store docName ""; continue
 >        ATerminate []           -> io $ updateDocument store docName ""
 >        _                       -> return ()
 >   nullChannel _ = True
@@ -72,7 +72,7 @@ type to be the time it should wait between saving.
 >   type ArchiverConfig Autosaver = Int -- Interval
 >   initArchiver _ wait storage docName = do
 >        mv <- io $ (newEmptyMVar :: IO (MVar ArchiverData))
->        toA <- runProcess' Autosaver (mv, storage, docName, wait)
+>        toA <- (runProcessStateless (mv, storage, docName, wait)) :: MonadIO m => m (ChanFor Autosaver)
 >        return (toA, mv)
 
 > defaultInterval :: Int

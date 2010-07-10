@@ -54,6 +54,4 @@ We also define a GADT wrapper around the class to encapsulate archivers as a typ
 > data Archiver :: * where
 >    Archiver :: ArchiverProcess a => a -> ArchiverConfig a -> Archiver
 
-
-
 \end{document}

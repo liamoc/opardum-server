@@ -55,9 +55,6 @@ a message for when a client has disconnected, and a message when a client sends 
 simply to get around circular module imports.
 
 \begin{code}%
- data DocumentManagerMsg = NewClient Client
-                         | NewOp Client Packet
-                         | RemoveClient Client
 \end{code}
 
 All communication to clients is handled by the |ClientRegistry| type, so most of the client-management
@@ -73,10 +70,12 @@ The document manager (and the archiver) terminate if all clients disconnect.
 
 \begin{code}%
  -- Actually in the Hidden Types module.
- data DocumentManager = DocumentManager
+ data DocumentManager
+ 
+ data instance ProcessCommands DocumentManager = NewClient Client
+                                      | NewOp Client Packet
+                                      | RemoveClient Client
 \end{code}
-
-
 
 > instance Process DocumentManager where
 
@@ -85,7 +84,7 @@ lists. The document name, the |ClientRegistry| (which is a mutable IO structure)
 the archiver and channel to the client manager are stored in the Info portion for read-only
 access.
 
->   type ProcessInfo DocumentManager =  ( Chan ClientManagerMsg
+>   type ProcessInfo DocumentManager =  ( ChanFor ClientManager
 >                                       , MVar ArchiverData
 >                                       , ClientRegistry
 >                                       , DocName
@@ -93,8 +92,7 @@ access.
 >   type ProcessState DocumentManager = ( Snapshot
 >                                       , M.Map Client [Op]
 >                                       )
->   type ProcessCommands DocumentManager = DocumentManagerMsg
->   continue _ = do
+>   continue = do
 >     (toCM, mv, cr, docName) <- getInfo
 >     (doc, cl) <- getState
 >     currentMessage <- grabInbox
@@ -141,7 +139,7 @@ Otherwise, the ops are transmitted to every other client, and updated for storag
 >                                                                    return (cl',d')
 >
 >        putState (doc', cl')
->        continue DocumentManager
+>        continue
 >      where isNewClient (NewClient _) = True
 >            isNewClient _             = False
 >            isRemoveClient (RemoveClient _) = True
@@ -154,12 +152,12 @@ Spawning a document manager initializes it with some simple empty state. Seeing 
 manager and the archiver are fairly tightly bound, this is also used to spawn an archiver.
 The document manager is responsible for ensuring the archiver terminates.
 
-> spawnDocumentManager :: MonadIO m => Chan ClientManagerMsg -> DocName -> Snapshot -> Storage -> Archiver -> m (ChanFor DocumentManager)
+> spawnDocumentManager :: MonadIO m => ChanFor ClientManager -> DocName -> Snapshot -> Storage -> Archiver -> m (ChanFor DocumentManager)
 > spawnDocumentManager toCM docName doc storage (Archiver archiver config) = do
 >   (_, mv) <- initArchiver archiver config storage docName  
->   c <- createChannel DocumentManager
+>   c <- createChannel
 >   cr <- io $ createRegistry c
->   runProcessWith DocumentManager c (toCM, mv, cr, docName) (doc, M.empty)
+>   runProcessWith c (toCM, mv, cr, docName) (doc, M.empty)
 >   return c
 
 \end{document}

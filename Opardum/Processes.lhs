@@ -10,7 +10,7 @@
 
 \ignore{
 
-> {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, DeriveDataTypeable, TypeFamilies #-}
+> {-# LANGUAGE GeneralizedNewtypeDeriving, FlexibleInstances, MultiParamTypeClasses, DeriveDataTypeable, TypeFamilies, ScopedTypeVariables #-}
 > {-# OPTIONS_GHC -fno-warn-unused-do-bind #-}
 
 }
@@ -30,9 +30,11 @@ to write threads with thread-local state, and GHC type families, to generalize o
 >   , ThreadState()
 >   , Chan()
 >   , Process(..)
+>   , ProcessCommands
 >   , runProcessWith
 >   , runProcess
->   , runProcess'
+>   , runProcessStateless
+>   , runProcessDumb
 >   , switchTo
 >   , createChannel
 >   , getInbox
@@ -138,8 +140,9 @@ to be able to generalize over types, we use the new GHC Extension, type families
 
 > type ChanFor p = Chan (ProcessCommands p)
 
+> data family ProcessCommands p
+
 > class Process p where
->   type ProcessCommands p
 >   type ProcessInfo p
 >   type ProcessState p 
 
@@ -149,7 +152,7 @@ such as channels, and also the data type that is used for messages sent into the
 The |continue| method specifies the behavior of the thread. The state includes its inbox channel and whatever other
 state is specified in the class.
 
->   continue :: p -> ThreadState (ChanFor p, ProcessInfo p) (ProcessState p)
+>   continue :: ThreadState (ChanFor p, ProcessInfo p) (ProcessState p)
 
 The |nullChannel| option specifies whether or not the channel created for this thread should be nulled, i.e, if the
 thread does not read messages from the outside world, this will be |True|. This is used, for example, in automatic
@@ -176,10 +179,10 @@ the state tuple manually:
 We introduce a runner for |Process|es, which is a wrapper around both |forkIO|, to spawn the thread, and |runStateT|,
 to provide initial state.
 
-> runProcessWith :: (MonadIO m, Process p)  => p -> ChanFor p -> ProcessInfo p -> ProcessState p ->  m ()
-> runProcessWith p chan info state = 
+> runProcessWith :: (MonadIO m, Process p)  => ChanFor p -> ProcessInfo p -> ProcessState p ->  m ()
+> runProcessWith chan info state = 
 >    let 
->      ThreadState v = continue p
+>      ThreadState v = continue 
 >    in do
 >      io $ forkIO $ flip runReaderT (chan, info) $ runStateT v state >> return ()
 >      return ()
@@ -187,30 +190,38 @@ to provide initial state.
 We also provide a means to create a channel destined for a particular process. For safety reasons (to prevent null
 channels from ending up where they are not supposed to), this is the only way to create channels outside of this module.
 
-> createChannel :: (MonadIO m, Process p) => p -> m (ChanFor p)
-> createChannel p = if (nullChannel p) then newNullChan
->                                      else newChan
+> createChannel :: (MonadIO m, Process p) => m (ChanFor p)
+> createChannel = do ret <- newNullChan
+>                    if typesCheck ret then return ret else newChan
+>        where  typesCheck :: (Process p) => ChanFor p -> Bool
+>               typesCheck (_ :: ChanFor p) = nullChannel (undefined :: p)
+>                                          
 
 We provide two further ways to invoke a process. First, we provide |switchTo|, which allows the current thread to begin execution 
-of the |Process|. It assumes that the process does not need a channel.
+of the |Process|. 
 
 > switchTo :: (MonadIO m, Process p) => p -> ProcessInfo p -> ProcessState p -> m ()
-> switchTo p info state = do c <- createChannel p
->                            let v = unbox $ continue p
->                            io $ runReaderT (runStateT v state) (c, info)
->                            return ()
+> switchTo (_ :: p) info state = do c <- (createChannel :: MonadIO m => m (ChanFor p))
+>                                   let v = unbox $ continue
+>                                   io $ runReaderT (runStateT v state) (c, info)
+>                                   return ()
 
 Finally, we provide a convenience function to both create the channel for, and run a |Process| in another thread. The channel 
 for the process is returned. 
 
-> runProcess :: (MonadIO m, Process p) => p -> ProcessInfo p -> ProcessState p -> m (ChanFor p)
-> runProcess p info state = do c <- createChannel p 
->                              runProcessWith p c info state 
->                              return c
+> runProcess :: (MonadIO m, Process p) => ProcessInfo p -> ProcessState p -> m (ChanFor p)
+> runProcess info state = do c <- createChannel
+>                            runProcessWith c info state 
+>                            return c
 
 And a helper for stateless threads:
 
-> runProcess' :: (MonadIO m, Process p, ProcessState p ~ ()) => p -> ProcessInfo p -> m (ChanFor p)
-> runProcess' p info = runProcess p info ()
+> runProcessStateless :: (MonadIO m, Process p) => ProcessInfo p -> m (ChanFor p)
+> runProcessStateless info = runProcess info (error "No state exists!")
+
+And another for stateless, infoless threads:
+
+> runProcessDumb :: (MonadIO m, Process p) => m (ChanFor p)
+> runProcessDumb = runProcess (error "No info exists!") (error "No state exists!")
 
 \end{document}

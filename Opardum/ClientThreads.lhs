@@ -10,7 +10,7 @@
 
 \ignore{
 
-> {-# LANGUAGE TypeFamilies #-}
+> {-# LANGUAGE TypeFamilies, EmptyDataDecls #-}
 
 }
 \section{Introduction}
@@ -39,12 +39,11 @@ as it waits on client input not application input.
 If the client input somehow breaks, for example if the client disconnects, the listener signals
 the document manager that the client should be removed.
 
-> data Listener = Listener
+> data Listener
 > instance Process Listener where
->   type ProcessCommands Listener = ()
+>   type ProcessInfo Listener = (Client, ChanFor DocumentManager)
 >   type ProcessState Listener = ()
->   type ProcessInfo Listener = (Client, Chan DocumentManagerMsg)
->   continue _ = do
+>   continue = do
 >      (client, toDM) <- getInfo
 >      input <- io $ readFrame client 
 >      case input of
@@ -54,33 +53,30 @@ the document manager that the client should be removed.
 >                       Just p  -> do 
 >                         debug $ "Recieved " ++ show p
 >                         NewOp client p ~> toDM 
->                         continue Listener
->   nullChannel _ = True
+>                         continue
+>   nullChannel = const True
 
 \subsection{Shouter}
 
 The |shouter| listens on a channel from the @ClientRegistry@, which broadcasts operations to it 
 for serialization and transmission to the client.
 
-> data ShouterMsg = STerminate
->                 | Shout Packet
-
 If the packet fails to send, for example if the client disconnects, the shouter signals the 
 document manager that the client should be removed.
 
-> data Shouter = Shouter
+> data Shouter 
+> data instance ProcessCommands Shouter = STerminate | Shout Packet
 > instance Process Shouter where
->   type ProcessCommands Shouter = ShouterMsg
 >   type ProcessState Shouter = ()
->   type ProcessInfo Shouter = (Client, Chan DocumentManagerMsg)
->   continue _ = do
+>   type ProcessInfo Shouter = (Client, ChanFor DocumentManager)
+>   continue = do
 >     (client, toDM) <- getInfo
 >     msg <- grabInbox
 >     case msg of
 >        STerminate -> return ()
 >        Shout pack -> do v <- io $ sendFrame client (serialize pack) 
 >                         debug $ "shouted to " ++ show client ++ ": " ++ serialize pack
->                         if v then continue Shouter
+>                         if v then continue
 >                              else RemoveClient client ~> toDM
 
 
