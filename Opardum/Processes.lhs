@@ -41,12 +41,11 @@ to write threads with thread-local state, and GHC type families, to generalize o
 >   , getInfo
 >   , getState
 >   , putState
->   , forkThread
 >   , ChanFor
 >   ) where
 >
 > import qualified Control.Concurrent.Chan as C
-> import Control.Concurrent (forkIO)
+> import Control.Concurrent.Forkable (ForkableMonad, forkIO)
 > import Control.Monad.Trans
 > import Control.Monad.State
 > import Control.Monad.Reader
@@ -77,18 +76,12 @@ We will use GHC's @newtype@ @deriving@ feature to automatically make |ThreadStat
 action.
 
 > newtype ThreadStateM r s v = ThreadState { unbox :: StateT s (ReaderT r IO) v }
->    deriving (Monad, Functor, MonadIO, MonadState s, MonadReader r)
+>    deriving (Monad, Functor, MonadIO, MonadState s, MonadReader r, ForkableMonad)
 
 Finally, seeing as the return type from the |ThreadStateM| monad does not usually matter, we define the
 unit return to be |ThreadState|.
 
 > type ThreadState r s = ThreadStateM r s ()
-
-We also provide a simple lifted |forkIO| so that threads can start jobs asynchronously that terminate as soon as they finish. 
-For long running threads, |Process|es should be used.
-
-> forkThread :: IO () -> ThreadState r v
-> forkThread v = (io . forkIO) v >> return ()
 
 \subsection {Channels}
 

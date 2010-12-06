@@ -36,6 +36,7 @@ In this module are contained singleton threads that manage initial client connec
 > import qualified Data.Map as M
 > import Control.Applicative ((<$>))
 > import Network(Socket)
+> import Control.Concurrent.Forkable
 
 \subsection{Client Manager}
 
@@ -72,7 +73,7 @@ data ClientManager
 >      inbox <- getInbox
 >      case message of
 >        RemoveDocument docName -> putState $ M.delete docName documents
->        AddClient client -> forkThread $ ask client inbox
+>        AddClient client -> do forkIO $ io (ask client inbox); return ()
 >        AddClientToDoc client docName -> do
 >          case M.lookup docName documents of
 >            Just chan -> NewClient client ~> chan
