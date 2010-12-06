@@ -77,9 +77,14 @@ Running opardum with a changed config file will cause it to recompile.
 Web Client
 ==========
 
-A simple, probably buggy testing client has been implemented as a web page with an embedded [Mozilla Bespin](https://bespin.mozillalabs.com/) editor. In order
-to use the client, download Bespin Embedded DropIn, and place it in a directory entitled "bespin" under "Client", such that Client/bespin/BespinEmbedded.js can 
-be found.
+A simple, probably buggy testing client has been implemented as a web page with an embedded [Mozilla Skywriter](https://mozillalabs.com/skywriter) editor. In order
+to use the client, you will need to:
 
-Then run a web server to serve up that HTML page and navigate there with a compliant browser such as Google Chrome. Note that advanced HTML5 features are required
-for Bespin, and WebSockets are used for the transport protocol. Hence Firefox 3.5 and any version of IE will not work.
+Run a web server to serve up the "Client" directory, such that:
+
+  http://localhost/opardum/index.html
+
+Refers to the index.html file located there. `localhost` can be substituted for any hostname.
+
+HTML page and navigate there with a compliant browser such as Google Chrome. Note that advanced HTML5 features are required for Bespin, and WebSockets are used for the 
+transport protocol. Hence Firefox 3.5 and any version of IE will not work.
