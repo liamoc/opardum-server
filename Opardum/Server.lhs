@@ -90,10 +90,10 @@ data ClientManager
 >        ask client toCM = do
 >          request <- readFrame client
 >          case request of
->            Left _        -> closeClient client
+>            Left _        -> disconnect client
 >            Right docName -> if validName docName 
 >                               then AddClientToDoc client docName ~> toCM
->                               else closeClient client
+>                               else disconnect client
 >        validName = all isAlphaNum
 
 \subsection{Port Listener}
@@ -107,12 +107,8 @@ connections, forwarding to the client manager.
 >   type ProcessState PortListener = ()
 >   continue = do
 >     (socket, toCM, location, port) <- getInfo
->     client <- io $ acceptWeb socket location port
->     AddClient client ~> toCM     
+>     acceptWeb socket (\client -> do io $ sendFrame client "hello"; AddClient client ~> toCM)
 >     continue
 >   nullChannel _ = True
-
-
-
 
 \end{document}

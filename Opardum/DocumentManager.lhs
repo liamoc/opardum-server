@@ -89,6 +89,7 @@ access.
 >   continue = do
 >     (toCM, mv, cr, docName) <- getInfo
 >     (doc, cl) <- getState
+>     debug $ show doc
 >     currentMessage <- grabInbox
 
 Once all clients disconnect, the storage is committed, and the archiver and document manager will

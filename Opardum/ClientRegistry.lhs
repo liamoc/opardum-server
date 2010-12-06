@@ -98,7 +98,7 @@ and then removes the |ClientData| from the registry.
 > removeClient (ClientRegistry reg) c = do
 >   (cd, toDM) <- readIORef reg
 >   let (ClientData shouter _) = cd M.! c
->   closeClient c
+>   disconnect c
 >   STerminate ~> shouter
 >   writeIORef reg (M.delete c cd, toDM)
 

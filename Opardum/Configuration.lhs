@@ -87,7 +87,7 @@ This function is applied by configuration files with a |Config| in order to conf
 >         { Dyre.projectName = "opardum"
 >         , Dyre.realMain    = bootstrap
 >         , Dyre.showError   = \a s -> trace s a
->         , Dyre.hidePackages = ["transformers","monads-fd"]
+>         , Dyre.hidePackages = ["transformers", "monads-tf"]
 >         }
 
 \end{document}
